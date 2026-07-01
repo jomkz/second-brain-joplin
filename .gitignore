@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+.env
+
+# Ruff / pytest cache
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Embeddings / local index (generated at runtime)
+.index/
+*.npy
+*.faiss
+
+# macOS
+.DS_Store
+
+# Editor
+.idea/
+.vscode/
+*.swp

@@ -1,0 +1,23 @@
+component:joplin-api:
+  - src/second_brain_joplin/joplin_client.py
+
+component:mcp:
+  - src/second_brain_joplin/server.py
+  - src/second_brain_joplin/tools.py
+
+component:search:
+  - src/second_brain_joplin/search.py
+
+component:docs:
+  - docs/**
+  - "*.md"
+  - "!CONTRIBUTING.md"
+
+component:ci:
+  - .github/workflows/**
+  - .github/project.yml
+  - .github/labeler.yml
+  - pyproject.toml
+
+component:templates:
+  - templates/**

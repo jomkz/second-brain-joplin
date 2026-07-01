@@ -1,0 +1,22 @@
+name: Task
+description: A specific, well-scoped piece of work (including docs and chores)
+labels: ["needs-triage"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What needs to be done
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Done when
+      description: Clear, verifiable definition of done.
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Implementation notes
+      description: Relevant context, links, or constraints.

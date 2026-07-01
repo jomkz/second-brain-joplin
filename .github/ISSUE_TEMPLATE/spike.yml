@@ -1,0 +1,25 @@
+name: Spike
+description: A time-boxed investigation that informs follow-on work
+labels: ["needs-triage"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question to answer
+      description: What do we need to know by the end of this spike?
+    validations:
+      required: true
+  - type: input
+    id: timebox
+    attributes:
+      label: Timebox
+      placeholder: "e.g. 2 hours, 1 day"
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Expected output
+      description: What artifact or decision does this spike produce?
+    validations:
+      required: true
