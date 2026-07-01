@@ -1,6 +1,7 @@
 """Tests for the read MCP tools, driven through a FastMCP client."""
 
 import time
+from typing import Any
 
 import httpx
 import pytest
@@ -17,13 +18,13 @@ def _ms(seconds_ago: float) -> int:
     return int((time.time() - seconds_ago) * 1000)
 
 
-def _attr(obj, name):
+def _attr(obj: object, name: str) -> Any:
     """Read a field whether FastMCP returned a model instance or a dict."""
     return obj[name] if isinstance(obj, dict) else getattr(obj, name)
 
 
 @respx.mock
-async def test_overview_builds_tree_with_counts():
+async def test_overview_builds_tree_with_counts() -> None:
     respx.get(f"{BASE_URL}/folders").mock(
         return_value=httpx.Response(
             200,
@@ -62,7 +63,7 @@ async def test_overview_builds_tree_with_counts():
 
 
 @respx.mock
-async def test_search_returns_excerpts():
+async def test_search_returns_excerpts() -> None:
     long_body = "word " * 100  # > 200 chars once joined
     respx.get(f"{BASE_URL}/search").mock(
         return_value=httpx.Response(
@@ -84,7 +85,7 @@ async def test_search_returns_excerpts():
 
 
 @respx.mock
-async def test_search_empty_returns_empty_list():
+async def test_search_empty_returns_empty_list() -> None:
     respx.get(f"{BASE_URL}/search").mock(
         return_value=httpx.Response(200, json={"items": [], "has_more": False})
     )
@@ -94,7 +95,7 @@ async def test_search_empty_returns_empty_list():
 
 
 @respx.mock
-async def test_read_converts_timestamps():
+async def test_read_converts_timestamps() -> None:
     respx.get(f"{BASE_URL}/notes/abc").mock(
         return_value=httpx.Response(
             200,
@@ -118,7 +119,7 @@ async def test_read_converts_timestamps():
 
 
 @respx.mock
-async def test_read_missing_note_raises_tool_error():
+async def test_read_missing_note_raises_tool_error() -> None:
     respx.get(f"{BASE_URL}/notes/missing").mock(return_value=httpx.Response(404))
     async with Client(mcp) as client:
         with pytest.raises(ToolError):
@@ -126,7 +127,7 @@ async def test_read_missing_note_raises_tool_error():
 
 
 @respx.mock
-async def test_recent_filters_by_days():
+async def test_recent_filters_by_days() -> None:
     respx.get(f"{BASE_URL}/notes").mock(
         return_value=httpx.Response(
             200,
@@ -147,7 +148,7 @@ async def test_recent_filters_by_days():
 
 
 @respx.mock
-async def test_tool_surfaces_connection_error():
+async def test_tool_surfaces_connection_error() -> None:
     respx.get(f"{BASE_URL}/folders").mock(side_effect=httpx.ConnectError("boom"))
     async with Client(mcp) as client:
         with pytest.raises(ToolError):

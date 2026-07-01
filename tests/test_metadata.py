@@ -5,5 +5,5 @@ from importlib.metadata import version
 from second_brain_joplin import __version__
 
 
-def test_installed_version_matches_dunder():
+def test_installed_version_matches_dunder() -> None:
     assert version("second-brain-joplin") == __version__

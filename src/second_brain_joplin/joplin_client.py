@@ -8,6 +8,8 @@ Requires Joplin Desktop running with the Web Clipper service enabled. The token
 is available at Tools → Options → Web Clipper.
 """
 
+from typing import Any
+
 import httpx
 
 from .config import Settings
@@ -17,6 +19,8 @@ from .errors import (
     JoplinConnectionError,
     JoplinNotFoundError,
 )
+
+JsonDict = dict[str, Any]
 
 
 class JoplinClient:
@@ -61,7 +65,7 @@ class JoplinClient:
             raise JoplinNotFoundError("The requested Joplin resource was not found.")
         raise JoplinAPIError(f"Joplin returned an unexpected response (HTTP {status}).")
 
-    async def _get(self, path: str, params: dict | None = None) -> httpx.Response:
+    async def _get(self, path: str, params: JsonDict | None = None) -> httpx.Response:
         try:
             response = await self._client.get(path, params=params)
         except httpx.ConnectError as exc:
@@ -73,14 +77,14 @@ class JoplinClient:
         return response
 
     async def _get_paginated(
-        self, path: str, params: dict | None = None, max_items: int | None = None
-    ) -> list[dict]:
+        self, path: str, params: JsonDict | None = None, max_items: int | None = None
+    ) -> list[JsonDict]:
         """Follow Joplin's ``has_more``/``page`` pagination and collect items.
 
         When ``max_items`` is set, stops once that many items are collected —
         useful for endpoints ordered so the earliest pages are the ones we want.
         """
-        items: list[dict] = []
+        items: list[JsonDict] = []
         base_params = dict(params or {})
         page = 1
         while True:
@@ -94,20 +98,21 @@ class JoplinClient:
 
     # -- endpoints -----------------------------------------------------------
 
-    async def get_folders(self) -> list[dict]:
+    async def get_folders(self) -> list[JsonDict]:
         """Return all notebooks (Joplin folders) with their hierarchy."""
         return await self._get_paginated("/folders", {"fields": "id,title,parent_id"})
 
-    async def get_notes_index(self) -> list[dict]:
+    async def get_notes_index(self) -> list[JsonDict]:
         """Return every note's id and parent, for tallying notebook counts."""
         return await self._get_paginated("/notes", {"fields": "id,parent_id"})
 
-    async def get_note(self, note_id: str) -> dict:
+    async def get_note(self, note_id: str) -> JsonDict:
         """Return a single note including its full markdown body."""
         params = {"fields": "id,title,body,parent_id,created_time,updated_time"}
-        return (await self._get(f"/notes/{note_id}", params)).json()
+        data: JsonDict = (await self._get(f"/notes/{note_id}", params)).json()
+        return data
 
-    async def search(self, query: str, limit: int) -> list[dict]:
+    async def search(self, query: str, limit: int) -> list[JsonDict]:
         """Keyword-search notes, returning up to ``limit`` raw hits."""
         return await self._get_paginated(
             "/search",
@@ -115,7 +120,7 @@ class JoplinClient:
             max_items=limit,
         )
 
-    async def get_recent(self, limit: int) -> list[dict]:
+    async def get_recent(self, limit: int) -> list[JsonDict]:
         """Return the ``limit`` most-recently-updated notes (newest first)."""
         return await self._get_paginated(
             "/notes",
@@ -127,6 +132,6 @@ class JoplinClient:
             max_items=limit,
         )
 
-    async def create_note(self, title: str, body: str, notebook_id: str) -> dict:
+    async def create_note(self, title: str, body: str, notebook_id: str) -> JsonDict:
         # Real implementation lands with the human-gated write flow (issue #10).
         raise NotImplementedError

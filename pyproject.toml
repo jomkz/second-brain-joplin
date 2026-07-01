@@ -79,7 +79,6 @@ source = ["second_brain_joplin"]
 
 [tool.mypy]
 python_version = "3.11"
-files = ["src"]
-warn_unused_ignores = true
-warn_redundant_casts = true
+files = ["src", "tests"]
+strict = true
 ignore_missing_imports = true

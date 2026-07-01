@@ -39,12 +39,15 @@ uv run pytest --cov-fail-under=90
 ## Linting and type checking
 
 ```bash
-uvx pre-commit run --all-files   # ruff lint + format (the authoritative gate)
-uv run mypy src                  # static type checking
+uvx pre-commit run --all-files   # ruff lint + format + actionlint (the authoritative gate)
+uv run mypy                      # strict static type checking (src + tests)
 ```
 
 `.pre-commit-config.yaml` is the single source of truth for lint tooling and
-versions — CI runs the exact same `pre-commit run --all-files`.
+versions — CI runs the exact same `pre-commit run --all-files`. It also runs
+`actionlint` over `.github/workflows/*.yml`, so workflow-syntax regressions are
+caught locally. mypy runs in `strict` mode over both `src` and `tests`
+(configured in `pyproject.toml`).
 
 ## How CI works
 

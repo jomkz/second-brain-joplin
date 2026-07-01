@@ -17,3 +17,7 @@ repos:
         args: [--markdown-linebreak-ext=md]
       - id: check-yaml
       - id: check-toml
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
