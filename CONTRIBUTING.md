@@ -57,6 +57,10 @@ that builds the package, runs `twine check`, and smoke-tests the wheel. Both
 it, so nothing merges or ships without passing the same checks. Run `uv sync
 --locked` locally to match CI's locked environment.
 
+A separate [`labeler.yml`](.github/workflows/labeler.yml) workflow applies
+`component:*` labels to PRs from the file paths changed — advisory only, not a
+merge gate.
+
 ## Running the server locally
 
 ```bash
@@ -80,7 +84,7 @@ See [docs/project-management.md](docs/project-management.md) for the full model
 
 | Prefix | Values | Applied by |
 |---|---|---|
-| `component:` | `joplin-api`, `mcp`, `search`, `docs`, `ci`, `templates` | Maintainer (issues); labeler bot (PRs) |
+| `component:` | `joplin-api`, `mcp`, `search`, `docs`, `ci`, `templates` | Maintainer (issues); [labeler bot](.github/workflows/labeler.yml) (PRs) |
 | `phase-` | `phase-0`, `phase-1`, `phase-2`, `phase-3` | Maintainer |
 | meta | `epic`, `backlog`, `needs-triage`, `blocked`, `good first issue`, `help wanted` | Maintainer |
 

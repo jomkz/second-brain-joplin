@@ -1,23 +1,42 @@
 component:joplin-api:
-  - src/second_brain_joplin/joplin_client.py
+  - changed-files:
+      - any-glob-to-any-file:
+          - src/second_brain_joplin/joplin_client.py
+          - src/second_brain_joplin/config.py
+          - src/second_brain_joplin/errors.py
 
 component:mcp:
-  - src/second_brain_joplin/server.py
-  - src/second_brain_joplin/tools.py
+  - changed-files:
+      - any-glob-to-any-file:
+          - src/second_brain_joplin/server.py
+          - src/second_brain_joplin/cli.py
+          - src/second_brain_joplin/models.py
+          - src/second_brain_joplin/tools/**
 
 component:search:
-  - src/second_brain_joplin/search.py
+  - changed-files:
+      - any-glob-to-any-file:
+          - src/second_brain_joplin/search.py
 
 component:docs:
-  - docs/**
-  - "*.md"
-  - "!CONTRIBUTING.md"
+  - changed-files:
+      - any-glob-to-any-file:
+          - docs/**
+  - changed-files:
+      - any-glob-to-any-file:
+          - "*.md"
+        all-globs-to-all-files:
+          - "!CONTRIBUTING.md"
 
 component:ci:
-  - .github/workflows/**
-  - .github/project.yml
-  - .github/labeler.yml
-  - pyproject.toml
+  - changed-files:
+      - any-glob-to-any-file:
+          - .github/workflows/**
+          - .github/project.yml
+          - .github/labeler.yml
+          - pyproject.toml
 
 component:templates:
-  - templates/**
+  - changed-files:
+      - any-glob-to-any-file:
+          - templates/**

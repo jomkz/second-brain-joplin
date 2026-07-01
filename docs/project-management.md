@@ -34,8 +34,10 @@ Labels are grouped by prefix; the canonical list is in
 
 - **`component:*`** — which part of the codebase: `joplin-api`, `mcp`, `search`,
   `docs`, `ci`, `templates`. On PRs these are applied **automatically** by the
-  [labeler](../.github/labeler.yml) based on the files changed; on issues they
-  are set during triage.
+  [labeler workflow](../.github/workflows/labeler.yml) (runs on PR
+  open/sync/reopen) from the path rules in
+  [`.github/labeler.yml`](../.github/labeler.yml); on issues they are set during
+  triage.
 - **`phase-0..3`** — the roadmap phase a piece of work belongs to (thematic):
   bootstrap, core read tools, semantic search, write workflow & publish.
 - **Meta** — `epic`, `backlog`, `needs-triage`, `blocked`, plus GitHub defaults
@@ -89,6 +91,11 @@ To require CI green before merge, an operator enables branch protection on `main
 
 (Check names are `<caller job> / <job name>`; they appear in the checks list on
 the first PR once the workflow has run.)
+
+A separate [`labeler.yml`](../.github/workflows/labeler.yml) workflow runs on
+`pull_request_target` to apply `component:*` labels (see [Labels](#labels)
+above). It is **advisory** — deliberately *not* a required status check, so it
+never gates a merge.
 
 ## Possible future work
 
