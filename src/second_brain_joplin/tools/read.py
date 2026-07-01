@@ -1,16 +1,14 @@
 """Read-only MCP tools backed by the Joplin Data API."""
 
 from datetime import UTC, datetime, timedelta
-from typing import cast
 
 from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
 
+from ..context import app_context
 from ..errors import JoplinError
-from ..joplin_client import JoplinClient, JsonDict
-from ..models import Note, Notebook, RecentNote, SearchResult, epoch_ms_to_iso
-
-EXCERPT_LENGTH = 200
+from ..joplin_client import JsonDict
+from ..models import Note, Notebook, RecentNote, SearchResult, epoch_ms_to_iso, excerpt
 
 
 def _build_overview(folders: list[JsonDict], notes_index: list[JsonDict]) -> list[Notebook]:
@@ -40,20 +38,13 @@ def _build_overview(folders: list[JsonDict], notes_index: list[JsonDict]) -> lis
     return [build(folder) for folder in children_of.get("", [])]
 
 
-def _excerpt(body: str) -> str:
-    text = " ".join((body or "").split())
-    if len(text) <= EXCERPT_LENGTH:
-        return text
-    return text[:EXCERPT_LENGTH].rstrip() + "…"
-
-
 def register(mcp: FastMCP) -> None:
     """Register the read tools on the given FastMCP server."""
 
     @mcp.tool()
     async def joplin_overview(ctx: Context) -> list[Notebook]:
         """List all Joplin notebooks as a tree with note counts."""
-        client = cast(JoplinClient, ctx.lifespan_context)
+        client = app_context(ctx).client
         try:
             folders = await client.get_folders()
             notes_index = await client.get_notes_index()
@@ -64,7 +55,7 @@ def register(mcp: FastMCP) -> None:
     @mcp.tool()
     async def joplin_search(ctx: Context, query: str, limit: int = 10) -> list[SearchResult]:
         """Search notes by keyword across all notebooks."""
-        client = cast(JoplinClient, ctx.lifespan_context)
+        client = app_context(ctx).client
         try:
             hits = await client.search(query, limit)
         except JoplinError as exc:
@@ -73,7 +64,7 @@ def register(mcp: FastMCP) -> None:
             SearchResult(
                 id=hit["id"],
                 title=hit.get("title", ""),
-                excerpt=_excerpt(hit.get("body", "")),
+                excerpt=excerpt(hit.get("body", "")),
             )
             for hit in hits
         ]
@@ -81,7 +72,7 @@ def register(mcp: FastMCP) -> None:
     @mcp.tool()
     async def joplin_read(ctx: Context, note_id: str) -> Note:
         """Read the full markdown content of a note by its ID."""
-        client = cast(JoplinClient, ctx.lifespan_context)
+        client = app_context(ctx).client
         try:
             note = await client.get_note(note_id)
         except JoplinError as exc:
@@ -98,7 +89,7 @@ def register(mcp: FastMCP) -> None:
     @mcp.tool()
     async def joplin_recent(ctx: Context, days: int = 7, limit: int = 20) -> list[RecentNote]:
         """List notes modified in the last N days, most recent first."""
-        client = cast(JoplinClient, ctx.lifespan_context)
+        client = app_context(ctx).client
         try:
             notes = await client.get_recent(limit)
         except JoplinError as exc:

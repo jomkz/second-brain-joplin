@@ -13,10 +13,12 @@ build/
 .coverage
 htmlcov/
 
-# Embeddings / local index (generated at runtime)
+# Embeddings / local index (generated at runtime; default lives under XDG data dir)
 .index/
 *.npy
 *.faiss
+index.db
+*.sqlite
 
 # macOS
 .DS_Store

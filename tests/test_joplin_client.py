@@ -75,6 +75,23 @@ async def test_search_empty_results(client: JoplinClient) -> None:
 
 
 @respx.mock
+async def test_list_note_versions_follows_pagination(client: JoplinClient) -> None:
+    pages = {
+        "1": httpx.Response(
+            200,
+            json={"items": [{"id": "a", "updated_time": 111}], "has_more": True},
+        ),
+        "2": httpx.Response(
+            200,
+            json={"items": [{"id": "b", "updated_time": 222}], "has_more": False},
+        ),
+    }
+    respx.get(f"{BASE_URL}/notes").mock(side_effect=lambda req: _page(req, pages))
+    notes = await client.list_note_versions()
+    assert [(n["id"], n["updated_time"]) for n in notes] == [("a", 111), ("b", 222)]
+
+
+@respx.mock
 async def test_get_note_ok(client: JoplinClient) -> None:
     respx.get(f"{BASE_URL}/notes/abc").mock(
         return_value=httpx.Response(200, json={"id": "abc", "title": "T", "body": "B"})

@@ -19,9 +19,26 @@ public issue. We aim to acknowledge reports within a few days.
 - **Least privilege.** Anything an MCP client can read, the connected AI can
   read. Don't expose notebooks containing credentials, regulated data, or other
   people's private information. Apply least privilege to your notes.
-- **No silent writes.** v0.1 tools are read-oriented and stubbed. Note creation
-  is planned as an explicit **human-gated** flow in v0.4 — no writes happen
+- **No silent writes.** The v0.2 tools are read-only; the semantic tools only
+  read from Joplin and write to a local index (below). Note creation is planned
+  as an explicit **human-gated** flow in v0.4 — no writes to Joplin happen
   without your confirmation.
+
+### Semantic search
+
+Semantic search (optional, via the `[semantic]` extra) changes the data
+footprint in two ways worth understanding:
+
+- **A local, unencrypted index.** Embedding your notes writes a persistent index
+  on disk (`SBJ_INDEX_DIR`, by default under your XDG data directory). It stores
+  the embedding vectors **plus plaintext chunk text and note titles/ids** derived
+  from your notes — treat it as sensitive as the notes themselves. Stale entries
+  are pruned only when you reindex, so a note deleted in Joplin can linger in the
+  index until the next sync (run `joplin_reindex` to reconcile).
+- **A one-time model download.** The first `joplin_reindex` downloads the
+  embedding model from the internet (e.g. the Hugging Face / FastEmbed CDN) and
+  caches it locally. Your note *content* is embedded on your machine and is never
+  sent anywhere — only the model weights are fetched.
 
 See also the privacy considerations in
 [docs/reference/second-brain-inspiration.md](docs/reference/second-brain-inspiration.md).

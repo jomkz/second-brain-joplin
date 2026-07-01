@@ -24,3 +24,14 @@ class JoplinNotFoundError(JoplinError):
 
 class JoplinAPIError(JoplinError):
     """Joplin returned an unexpected error response."""
+
+
+class SemanticUnavailableError(Exception):
+    """Semantic search cannot run — the optional dependencies are missing.
+
+    Raised when a semantic backend (embedder or vector store) cannot be built,
+    typically because the ``second-brain-joplin[semantic]`` extra is not
+    installed. The message tells the user how to enable it. Deliberately not a
+    :class:`JoplinError`: it is a local configuration problem, not a Joplin API
+    failure.
+    """

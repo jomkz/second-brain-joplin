@@ -32,6 +32,14 @@ dependencies = [
 # primary path.
 test = ["pytest>=8.0", "pytest-asyncio>=0.23", "respx>=0.21", "pytest-cov>=5.0", "mypy>=1.11"]
 
+# Semantic search. `semantic` is the light default stack (sqlite-vec + FastEmbed);
+# compose with the others to swap backends, e.g. `.[semantic,semantic-st]` for
+# bge-m3, or `.[semantic,semantic-chroma]` for the Chroma vector store. Which one
+# is used at runtime is chosen by SBJ_VECTOR_STORE / SBJ_EMBEDDING_BACKEND.
+semantic = ["sqlite-vec>=0.1", "fastembed>=0.4"]
+semantic-chroma = ["chromadb>=0.5"]
+semantic-st = ["sentence-transformers>=3"]
+
 [dependency-groups]
 dev = [
     "ruff",
@@ -76,6 +84,10 @@ addopts = "--cov=second_brain_joplin --cov-report=term-missing"
 [tool.coverage.run]
 branch = true
 source = ["second_brain_joplin"]
+# The concrete backends only run with the optional extras installed (which CI does
+# not do) and are covered by the opt-in integration suite instead. They are still
+# type-checked by mypy.
+omit = ["*/semantic/backends.py"]
 
 [tool.mypy]
 python_version = "3.11"

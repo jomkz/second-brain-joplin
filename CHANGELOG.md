@@ -6,8 +6,37 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Semantic search** (v0.3): two new MCP tools — `joplin_semantic_search` (find
+  notes by meaning, returning top-k hits with similarity scores) and
+  `joplin_reindex` (build/refresh the embedding index; `full=True` rebuilds from
+  scratch). The index **persists** across restarts and syncs **incrementally**,
+  re-embedding only notes whose Joplin `updated_time` changed and dropping deleted
+  ones.
+- Pluggable backends behind `Embedder` / `VectorIndex` interfaces: embedders
+  **FastEmbed** (default, ONNX) or **sentence-transformers** (bge-m3), and vector
+  stores **sqlite-vec** (default, single file) or **ChromaDB** — selected via
+  `SBJ_EMBEDDING_BACKEND` / `SBJ_VECTOR_STORE`. Shipped as optional extras
+  (`semantic`, `semantic-chroma`, `semantic-st`) so the base install stays light;
+  invoking a semantic tool without the extra returns a clear, actionable error.
+- New `SBJ_*` settings (`SBJ_EMBEDDING_BACKEND`, `SBJ_EMBEDDING_MODEL`,
+  `SBJ_VECTOR_STORE`, `SBJ_INDEX_DIR`, `SBJ_SEMANTIC_AUTO_SYNC`) and a
+  [semantic-search guide](docs/semantic-search.md).
+- **PR auto-labeler** (`.github/workflows/labeler.yml`, `actions/labeler@v5`)
+  applies `component:*` labels to PRs from `.github/labeler.yml` — the config is
+  migrated to the v5 schema and refreshed to match the v0.2 package layout.
+- **Static type checking** with `mypy` as a required CI gate (`uv run mypy src`).
+- **`actionlint` pre-commit hook** lints `.github/workflows/*.yml`, catching
+  workflow-syntax regressions locally (and in CI via `pre-commit run --all-files`).
+- Extra pre-commit hygiene hooks (end-of-file, trailing-whitespace, YAML/TOML
+  checks).
+
 ### Changed
 
+- The server lifespan now yields an `AppContext` (Joplin client + settings) rather
+  than a bare client; the semantic service is built lazily on first use so startup
+  never loads a model. Read tools reach the client via `app_context(ctx).client`.
 - **CI/CD re-architected around a reusable `checks` workflow.** Lint, type-check,
   the test matrix, and package build/validation now live in
   `.github/workflows/checks.yml`, invoked by both `ci.yml` (push/PR) and
@@ -22,17 +51,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   single source of truth for ruff (no more version drift with the dev group).
 - **mypy now runs in `strict` mode over both `src` and `tests`** (previously a
   pragmatic baseline scoped to `src`); the CI type-check step is now `uv run mypy`.
-
-### Added
-
-- **PR auto-labeler** (`.github/workflows/labeler.yml`, `actions/labeler@v5`)
-  applies `component:*` labels to PRs from `.github/labeler.yml` — the config is
-  migrated to the v5 schema and refreshed to match the v0.2 package layout.
-- **Static type checking** with `mypy` as a required CI gate (`uv run mypy src`).
-- **`actionlint` pre-commit hook** lints `.github/workflows/*.yml`, catching
-  workflow-syntax regressions locally (and in CI via `pre-commit run --all-files`).
-- Extra pre-commit hygiene hooks (end-of-file, trailing-whitespace, YAML/TOML
-  checks).
 
 ### Fixed
 
