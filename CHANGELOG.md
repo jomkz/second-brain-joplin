@@ -23,6 +23,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **PR auto-labeler** (`.github/workflows/labeler.yml`, `actions/labeler@v5`)
+  applies `component:*` labels to PRs from `.github/labeler.yml` — the config is
+  migrated to the v5 schema and refreshed to match the v0.2 package layout.
 - **Static type checking** with `mypy` as a required CI gate (`uv run mypy src`).
 - Extra pre-commit hygiene hooks (end-of-file, trailing-whitespace, YAML/TOML
   checks).
