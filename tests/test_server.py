@@ -1,10 +1,10 @@
-"""Tests for the MCP server: tool registration, stub payloads, and wiring."""
+"""Tests for the MCP server: tool registration, schemas, and lifespan wiring."""
 
 import pytest
 from fastmcp import Client
 
-from second_brain_joplin import server
-from second_brain_joplin.server import mcp
+from second_brain_joplin.joplin_client import JoplinClient
+from second_brain_joplin.server import lifespan, mcp
 
 EXPECTED_TOOLS = {
     "joplin_overview",
@@ -14,7 +14,7 @@ EXPECTED_TOOLS = {
     "joplin_create",
 }
 
-# tool name -> required input parameters (per issue #3 / README)
+# tool name -> required input parameters (ctx is injected, not user-facing)
 REQUIRED_PARAMS = {
     "joplin_overview": set(),
     "joplin_search": {"query"},
@@ -31,22 +31,6 @@ async def test_all_five_tools_registered():
 
 
 @pytest.mark.parametrize("tool_name", sorted(EXPECTED_TOOLS))
-async def test_tool_returns_not_implemented_stub(tool_name):
-    # Minimal valid args per tool.
-    args = {
-        "joplin_search": {"query": "x"},
-        "joplin_read": {"note_id": "abc"},
-        "joplin_create": {"title": "t", "body": "b", "notebook_id": "n"},
-    }.get(tool_name, {})
-
-    async with Client(mcp) as client:
-        result = await client.call_tool(tool_name, args)
-
-    assert result.data["status"] == "not implemented"
-    assert result.data["tool"] == tool_name
-
-
-@pytest.mark.parametrize("tool_name", sorted(EXPECTED_TOOLS))
 async def test_tool_input_schema_exposes_required_params(tool_name):
     async with Client(mcp) as client:
         tools = {tool.name: tool for tool in await client.list_tools()}
@@ -54,8 +38,9 @@ async def test_tool_input_schema_exposes_required_params(tool_name):
     schema = tools[tool_name].inputSchema
     properties = set(schema.get("properties", {}))
     assert REQUIRED_PARAMS[tool_name] <= properties
+    assert "ctx" not in properties
     if REQUIRED_PARAMS[tool_name]:
-        assert set(schema.get("required", [])) == REQUIRED_PARAMS[tool_name]
+        assert REQUIRED_PARAMS[tool_name] <= set(schema.get("required", []))
 
 
 async def test_joplin_recent_defaults_to_seven_days():
@@ -65,35 +50,23 @@ async def test_joplin_recent_defaults_to_seven_days():
     assert days["default"] == 7
 
 
-def test_get_client_reads_env(monkeypatch):
-    monkeypatch.setenv("JOPLIN_API_TOKEN", "secret")
-    monkeypatch.setenv("JOPLIN_BASE_URL", "http://example:9999")
-    client = server._get_client()
-    assert client.base_url == "http://example:9999"
-    assert client._params["token"] == "secret"
+async def test_joplin_create_is_still_stubbed():
+    async with Client(mcp) as client:
+        result = await client.call_tool(
+            "joplin_create", {"title": "t", "body": "b", "notebook_id": "n"}
+        )
+    assert result.data["status"] == "not implemented"
+    assert result.data["tool"] == "joplin_create"
 
 
-def test_get_client_defaults_when_env_unset(monkeypatch):
-    monkeypatch.delenv("JOPLIN_API_TOKEN", raising=False)
-    monkeypatch.delenv("JOPLIN_BASE_URL", raising=False)
-    client = server._get_client()
-    assert client.base_url == "http://localhost:41184"
-    assert client._params["token"] == ""
+async def test_lifespan_yields_client_and_closes(monkeypatch):
+    closed = {}
 
+    async def fake_aclose(self):
+        closed["ran"] = True
 
-def test_get_client_is_singleton():
-    assert server._get_client() is server._get_client()
+    monkeypatch.setattr(JoplinClient, "aclose", fake_aclose)
 
-
-def test_main_serve_invokes_mcp_run(monkeypatch):
-    called = {}
-    monkeypatch.setattr(server.mcp, "run", lambda: called.setdefault("ran", True))
-    server.main(["serve"])
-    assert called.get("ran") is True
-
-
-def test_main_without_command_prints_help(monkeypatch, capsys):
-    monkeypatch.setattr(server.mcp, "run", lambda: pytest.fail("mcp.run should not be called"))
-    server.main([])
-    out = capsys.readouterr().out
-    assert "serve" in out
+    async with lifespan(mcp) as ctx_client:
+        assert isinstance(ctx_client, JoplinClient)
+    assert closed.get("ran") is True

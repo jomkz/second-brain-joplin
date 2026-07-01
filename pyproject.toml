@@ -21,8 +21,9 @@ classifiers = [
     "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-    "fastmcp>=2.0",
+    "fastmcp>=3,<4",
     "httpx>=0.27",
+    "pydantic>=2",
     "python-dotenv>=1.0",
 ]
 
@@ -48,7 +49,7 @@ Repository = "https://github.com/jomkz/second-brain-joplin"
 Issues = "https://github.com/jomkz/second-brain-joplin/issues"
 
 [project.scripts]
-second-brain-joplin = "second_brain_joplin.server:main"
+second-brain-joplin = "second_brain_joplin.cli:main"
 
 [tool.hatch.version]
 path = "src/second_brain_joplin/__init__.py"

@@ -2,16 +2,13 @@
 
 import pytest
 
-from second_brain_joplin import server
+from second_brain_joplin.config import Settings
+from second_brain_joplin.joplin_client import JoplinClient
+
+BASE_URL = "http://localhost:41184"
 
 
-@pytest.fixture(autouse=True)
-def reset_client_singleton():
-    """Reset the module-level Joplin client between tests.
-
-    ``server._get_client`` memoizes a client in a module global; without this
-    the ``_get_client`` tests would leak state and become order-dependent.
-    """
-    server._client = None
-    yield
-    server._client = None
+@pytest.fixture
+def client():
+    """A JoplinClient pointed at the default localhost base URL."""
+    return JoplinClient(Settings(joplin_base_url=BASE_URL, joplin_api_token="tok"))

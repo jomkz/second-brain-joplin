@@ -7,7 +7,7 @@ An MCP server that turns your [Joplin](https://joplinapp.org/) knowledge base in
 
 Inspired by [second-brain-mcp](https://github.com/noesskeetit/second-brain-mcp) (for Obsidian). This project covers the same use case for Joplin: your AI assistant reads, searches, and files notes directly, without leaving the tool you already use.
 
-> **Status:** Pre-alpha — MCP tools are stubbed. See the [roadmap](#roadmap) and open issues.
+> **Status:** Pre-alpha — the four read tools are live; note creation is still stubbed (human-gated write lands in v0.4). See the [roadmap](#roadmap) and open issues.
 
 ---
 
@@ -71,7 +71,9 @@ See [docs/install.md](docs/install.md) for per-client setup guides.
 | `joplin_recent` | Notes modified in the last N days | No |
 | `joplin_create` | Create a note (human-gated) | Yes |
 
-> All tools are stubbed in v0.1. Implementation tracked in [v0.2 milestone](https://github.com/jomkz/second-brain-joplin/milestone/2).
+> The four read tools query a running Joplin instance as of v0.2. `joplin_create`
+> is still stubbed; the human-gated write flow is tracked in the
+> [v0.4 milestone](https://github.com/jomkz/second-brain-joplin/milestone/4).
 
 ---
 
@@ -99,7 +101,7 @@ The [PARA method](https://fortelabs.com/blog/para/) works well with Joplin. See 
 | Milestone | Theme | Status |
 |---|---|---|
 | [v0.1 — Bootstrap](https://github.com/jomkz/second-brain-joplin/milestone/1) | Repo, CI, package skeleton | Done |
-| [v0.2 — Core Read Tools](https://github.com/jomkz/second-brain-joplin/milestone/2) | All read MCP tools working | Planned |
+| [v0.2 — Core Read Tools](https://github.com/jomkz/second-brain-joplin/milestone/2) | All read MCP tools working | Done |
 | [v0.3 — Semantic Search](https://github.com/jomkz/second-brain-joplin/milestone/3) | Embedding index, semantic search | Planned |
 | [v0.4 — Write Workflow](https://github.com/jomkz/second-brain-joplin/milestone/4) | Human-gated note creation | Planned |
 | [v1.0 — Publish](https://github.com/jomkz/second-brain-joplin/milestone/5) | PyPI, full docs, templates | Planned |
