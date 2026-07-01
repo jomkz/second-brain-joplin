@@ -6,35 +6,13 @@ on:
   pull_request:
     branches: [main]
 
-jobs:
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-      - name: Install dependencies
-        run: uv sync
-      - name: Ruff check
-        run: uv run ruff check src tests
-      - name: Ruff format check
-        run: uv run ruff format --check src tests
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
-  test:
-    name: Test (Python ${{ matrix.python-version }})
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.11", "3.12", "3.13"]
-    steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-          python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: uv sync
-      - name: Run tests
-        run: uv run pytest --tb=short
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    uses: ./.github/workflows/checks.yml
