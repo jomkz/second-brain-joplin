@@ -1,0 +1,32 @@
+name: Release (TestPyPI)
+
+# Builds the sdist + wheel and publishes to TestPyPI via an OIDC trusted
+# publisher (no stored token). Before the first run, configure the trusted
+# publisher on https://test.pypi.org for the `jomkz/second-brain-joplin`
+# repository and this workflow file. See docs/releasing.md.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build-and-publish:
+    name: Build and publish to TestPyPI
+    runs-on: ubuntu-latest
+    environment: testpypi
+    permissions:
+      id-token: write  # required for OIDC trusted publishing
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Build sdist and wheel
+        run: uv build
+      - name: Validate metadata
+        run: uvx twine check dist/*
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/

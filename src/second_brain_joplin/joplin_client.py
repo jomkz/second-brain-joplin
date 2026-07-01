@@ -23,7 +23,9 @@ class JoplinClient:
             except httpx.ConnectError:
                 return False
 
-    # Remaining methods are stubs — see GitHub issues T1-T5 for implementation.
+    # Remaining methods are stubs — see GitHub issues #4–#8, #10 for
+    # implementation. The v0.1 MCP tools short-circuit with a "not implemented"
+    # payload before reaching these, so raising here is never hit in v0.1.
 
     async def get_notebooks(self) -> list[dict]:
         raise NotImplementedError
