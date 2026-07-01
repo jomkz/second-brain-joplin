@@ -36,6 +36,23 @@ Reproduce the gate locally with:
 uv run pytest --cov-fail-under=90
 ```
 
+### Semantic search & optional extras
+
+The semantic-search stack (embedding model + vector store) lives behind optional
+extras (`[semantic]`, `[semantic-chroma]`, `[semantic-st]`), so a plain `uv sync`
+and the test suite need **none** of them — the tests drive the orchestration in
+`src/second_brain_joplin/semantic/` through in-memory fakes (`tests/fakes.py`).
+The concrete backends in `semantic/backends.py` are the only code that imports
+the heavy libs (lazily), so they're omitted from coverage and validated
+separately. To exercise semantic search for real, install a backend combo and
+run `joplin_reindex`:
+
+```bash
+uv sync --extra semantic                 # sqlite-vec + FastEmbed (light default)
+# or: uv sync --extra semantic --extra semantic-st      # bge-m3 via sentence-transformers
+# or: uv sync --extra semantic --extra semantic-chroma  # ChromaDB vector store
+```
+
 ## Linting and type checking
 
 ```bash

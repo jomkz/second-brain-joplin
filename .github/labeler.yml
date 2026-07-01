@@ -16,7 +16,7 @@ component:mcp:
 component:search:
   - changed-files:
       - any-glob-to-any-file:
-          - src/second_brain_joplin/search.py
+          - src/second_brain_joplin/semantic/**
 
 component:docs:
   - changed-files:

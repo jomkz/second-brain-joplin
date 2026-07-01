@@ -106,6 +106,14 @@ class JoplinClient:
         """Return every note's id and parent, for tallying notebook counts."""
         return await self._get_paginated("/notes", {"fields": "id,parent_id"})
 
+    async def list_note_versions(self) -> list[JsonDict]:
+        """Return every note's id and ``updated_time`` for incremental sync.
+
+        Cheap (no bodies): used to detect which notes changed since the last
+        embedding sync.
+        """
+        return await self._get_paginated("/notes", {"fields": "id,updated_time"})
+
     async def get_note(self, note_id: str) -> JsonDict:
         """Return a single note including its full markdown body."""
         params = {"fields": "id,title,body,parent_id,created_time,updated_time"}
