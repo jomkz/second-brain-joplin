@@ -54,7 +54,7 @@ claude mcp add -s user second-brain-joplin \
 | `JOPLIN_API_TOKEN` | token from Joplin Web Clipper settings |
 | `JOPLIN_BASE_URL` | `http://localhost:41184` (default) |
 
-See [docs/INSTALL.md](docs/INSTALL.md) for per-client setup guides.
+See [docs/install.md](docs/install.md) for per-client setup guides.
 
 ---
 
@@ -87,7 +87,7 @@ See [docs/INSTALL.md](docs/INSTALL.md) for per-client setup guides.
 
 ## Notebook structure
 
-The [PARA method](https://fortelabs.com/blog/para/) works well with Joplin. See [docs/NOTEBOOK-STRUCTURE.md](docs/NOTEBOOK-STRUCTURE.md) for a recommended setup.
+The [PARA method](https://fortelabs.com/blog/para/) works well with Joplin. See [docs/notebook-structure.md](docs/notebook-structure.md) for a recommended setup.
 
 ---
 
@@ -95,11 +95,17 @@ The [PARA method](https://fortelabs.com/blog/para/) works well with Joplin. See 
 
 | Milestone | Theme | Status |
 |---|---|---|
-| [v0.1 — Bootstrap](https://github.com/jomkz/second-brain-joplin/milestone/1) | Repo, CI, package skeleton | In progress |
+| [v0.1 — Bootstrap](https://github.com/jomkz/second-brain-joplin/milestone/1) | Repo, CI, package skeleton | Done |
 | [v0.2 — Core Read Tools](https://github.com/jomkz/second-brain-joplin/milestone/2) | All read MCP tools working | Planned |
 | [v0.3 — Semantic Search](https://github.com/jomkz/second-brain-joplin/milestone/3) | Embedding index, semantic search | Planned |
 | [v0.4 — Write Workflow](https://github.com/jomkz/second-brain-joplin/milestone/4) | Human-gated note creation | Planned |
 | [v1.0 — Publish](https://github.com/jomkz/second-brain-joplin/milestone/5) | PyPI, full docs, templates | Planned |
+
+---
+
+## Security & privacy
+
+This server keeps your notes local: it talks only to Joplin's Web Clipper REST API on `localhost` and runs on your own machine. Anything an MCP client can read, the connected AI can read — so apply least privilege and don't expose notebooks with credentials or other sensitive data. Note creation is planned as an explicit human-gated flow (v0.4); v0.1 does no silent writes. See [SECURITY.md](SECURITY.md) for details and how to report a vulnerability.
 
 ---
 

@@ -1,8 +1,12 @@
 """MCP server entry point."""
 
+import argparse
 import os
+
+from dotenv import load_dotenv
 from fastmcp import FastMCP
 
+from . import __version__
 from .joplin_client import JoplinClient
 
 mcp = FastMCP("second-brain-joplin")
@@ -18,33 +22,61 @@ def _get_client() -> JoplinClient:
     return _client
 
 
+# All tools are stubbed for v0.1. They short-circuit with a "not implemented"
+# payload and never reach the (also-stubbed) JoplinClient methods; real
+# implementations land in v0.2 (GitHub issues #4–#8, #10).
+
+
 @mcp.tool()
-async def joplin_overview() -> str:
+async def joplin_overview() -> dict:
     """List all Joplin notebooks with note counts."""
-    raise NotImplementedError("Not yet implemented — tracked in GitHub issue T2")
+    return {"status": "not implemented", "tool": "joplin_overview", "issue": 5}
 
 
 @mcp.tool()
-async def joplin_search(query: str) -> str:
+async def joplin_search(query: str) -> dict:
     """Search notes by keyword across all notebooks."""
-    raise NotImplementedError("Not yet implemented — tracked in GitHub issue T3")
+    return {"status": "not implemented", "tool": "joplin_search", "issue": 6}
 
 
 @mcp.tool()
-async def joplin_read(note_id: str) -> str:
+async def joplin_read(note_id: str) -> dict:
     """Read the full content of a note by its ID."""
-    raise NotImplementedError("Not yet implemented — tracked in GitHub issue T4")
+    return {"status": "not implemented", "tool": "joplin_read", "issue": 7}
 
 
 @mcp.tool()
-async def joplin_recent(days: int = 7) -> str:
+async def joplin_recent(days: int = 7) -> dict:
     """List notes modified in the last N days."""
-    raise NotImplementedError("Not yet implemented — tracked in GitHub issue T5")
+    return {"status": "not implemented", "tool": "joplin_recent", "issue": 8}
 
 
-def main() -> None:
-    mcp.run()
+@mcp.tool()
+async def joplin_create(title: str, body: str, notebook_id: str) -> dict:
+    """Create a note in the given notebook (human-gated write)."""
+    return {"status": "not implemented", "tool": "joplin_create", "issue": 10}
 
 
-if __name__ == "__main__":
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="second-brain-joplin",
+        description="MCP server for Joplin knowledge bases.",
+    )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+    subparsers = parser.add_subparsers(dest="command")
+    subparsers.add_parser("serve", help="Start the MCP server (stdio transport).")
+    return parser
+
+
+def main(argv: list[str] | None = None) -> None:
+    load_dotenv()
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if args.command == "serve":
+        mcp.run()
+    else:
+        parser.print_help()
+
+
+if __name__ == "__main__":  # pragma: no cover
     main()

@@ -1,6 +1,6 @@
 # Declarative PM spec for second-brain-joplin.
 # Applied manually via `gh` CLI or GitHub UI; no automated sync script at this stage.
-# Follows the same model as mkzsystems/astrocyte project-management.md.
+# See docs/project-management.md for how this spec is used.
 
 labels:
   # component labels
