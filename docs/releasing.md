@@ -4,6 +4,14 @@ Releases are published to **PyPI** by the
 [`release`](../.github/workflows/release.yml) workflow using an OIDC
 **trusted publisher** — no API tokens are stored in the repo.
 
+On a `v*` tag push the workflow first runs the full **checks** suite (lint,
+type-check, the test matrix, and package build) on the tagged commit via the
+shared [`checks`](../.github/workflows/checks.yml) reusable workflow. A red check
+**blocks the publish**. The artifact that is published is the exact sdist + wheel
+built and tested in that suite — the publish job does not rebuild. Re-publishing
+a version that already exists on PyPI is skipped (`skip-existing`), so re-running
+a release is safe.
+
 ## One-time operator setup
 
 1. **Trusted publisher on PyPI** (already configured for this repo): a GitHub
@@ -32,8 +40,9 @@ Releases are published to **PyPI** by the
 
    The tag push triggers the workflow. You can also run it manually from the
    Actions tab (**Run workflow** / `workflow_dispatch`).
-3. The workflow runs `uv build`, validates metadata with `twine check`, and
-   publishes the sdist + wheel to PyPI.
+3. The workflow runs the full `checks` suite (lint, type-check, tests, and
+   `uv build` + `twine check`), then — only if everything is green — publishes
+   the tested sdist + wheel to PyPI.
 
 ## Verify
 

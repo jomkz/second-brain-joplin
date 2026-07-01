@@ -69,6 +69,27 @@ Every new issue starts as `needs-triage`. Triaging it means setting:
 The same checklist lives in
 [CONTRIBUTING.md](../CONTRIBUTING.md#issue-triage-checklist).
 
+## CI and branch protection
+
+Quality gates live in a single reusable workflow,
+[`.github/workflows/checks.yml`](../.github/workflows/checks.yml), invoked by both
+[`ci.yml`](../.github/workflows/ci.yml) (push/PR to `main`) and
+[`release.yml`](../.github/workflows/release.yml) (before publishing). See
+[CONTRIBUTING.md](../CONTRIBUTING.md#how-ci-works).
+
+To require CI green before merge, an operator enables branch protection on `main`
+(Settings → Branches) and marks these status checks as **required**:
+
+- `checks / Lint`
+- `checks / Type check`
+- `checks / Build and validate package`
+- `checks / Test (Python 3.11)`
+- `checks / Test (Python 3.12)`
+- `checks / Test (Python 3.13)`
+
+(Check names are `<caller job> / <job name>`; they appear in the checks list on
+the first PR once the workflow has run.)
+
 ## Possible future work
 
 Not in place today; noted so the model can grow without surprises:

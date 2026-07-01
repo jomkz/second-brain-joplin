@@ -1,5 +1,8 @@
 # second-brain-joplin
 
+[![CI](https://github.com/jomkz/second-brain-joplin/actions/workflows/ci.yml/badge.svg)](https://github.com/jomkz/second-brain-joplin/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/second-brain-joplin)](https://pypi.org/project/second-brain-joplin/)
+
 An MCP server that turns your [Joplin](https://joplinapp.org/) knowledge base into searchable memory for any MCP-capable AI client — Claude Code, Cursor, and others.
 
 Inspired by [second-brain-mcp](https://github.com/noesskeetit/second-brain-mcp) (for Obsidian). This project covers the same use case for Joplin: your AI assistant reads, searches, and files notes directly, without leaving the tool you already use.

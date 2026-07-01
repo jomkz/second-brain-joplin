@@ -28,7 +28,34 @@ pip install -e ".[test]"
 uv run pytest
 ```
 
-Tests enforce a 90% coverage gate (configured in `pyproject.toml`).
+Coverage is printed on every run. The **90% coverage gate is enforced in CI**
+(not in `addopts`, so running a subset of tests locally won't spuriously fail).
+Reproduce the gate locally with:
+
+```bash
+uv run pytest --cov-fail-under=90
+```
+
+## Linting and type checking
+
+```bash
+uvx pre-commit run --all-files   # ruff lint + format (the authoritative gate)
+uv run mypy src                  # static type checking
+```
+
+`.pre-commit-config.yaml` is the single source of truth for lint tooling and
+versions — CI runs the exact same `pre-commit run --all-files`.
+
+## How CI works
+
+All quality gates live in one reusable workflow,
+[`.github/workflows/checks.yml`](.github/workflows/checks.yml) — **lint**,
+**typecheck**, a **test** matrix (Python 3.11/3.12/3.13), and a **build** job
+that builds the package, runs `twine check`, and smoke-tests the wheel. Both
+[`ci.yml`](.github/workflows/ci.yml) (on push/PR to `main`) and
+[`release.yml`](.github/workflows/release.yml) (before publishing to PyPI) call
+it, so nothing merges or ships without passing the same checks. Run `uv sync
+--locked` locally to match CI's locked environment.
 
 ## Running the server locally
 

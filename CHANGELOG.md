@@ -6,6 +6,32 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **CI/CD re-architected around a reusable `checks` workflow.** Lint, type-check,
+  the test matrix, and package build/validation now live in
+  `.github/workflows/checks.yml`, invoked by both `ci.yml` (push/PR) and
+  `release.yml` (before publish) — so releases can no longer ship code that
+  hasn't passed the full check suite. The release job now publishes the exact
+  artifact built and tested in `checks` (build-once/test/publish), with
+  `skip-existing` on re-runs.
+- CI now installs with `uv sync --locked` (fails on a drifted `uv.lock`), adds
+  least-privilege `permissions` and `concurrency` cancellation, and validates
+  packaging (`uv build` + `twine check` + wheel smoke test) on every PR.
+- Lint is now driven by `pre-commit` in CI, making `.pre-commit-config.yaml` the
+  single source of truth for ruff (no more version drift with the dev group).
+
+### Added
+
+- **Static type checking** with `mypy` as a required CI gate (`uv run mypy src`).
+- Extra pre-commit hygiene hooks (end-of-file, trailing-whitespace, YAML/TOML
+  checks).
+
+### Fixed
+
+- Moved the `--cov-fail-under=90` gate out of pytest `addopts` into the CI
+  command so running a subset of tests locally no longer spuriously fails.
+
 ## [0.1.0] — Bootstrap
 
 Initial project skeleton — the MCP server starts and all tools are stubbed.
