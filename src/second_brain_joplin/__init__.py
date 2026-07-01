@@ -1,3 +1,3 @@
 """second-brain-joplin: MCP server for Joplin knowledge bases."""
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

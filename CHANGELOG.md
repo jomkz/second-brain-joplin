@@ -32,6 +32,34 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Moved the `--cov-fail-under=90` gate out of pytest `addopts` into the CI
   command so running a subset of tests locally no longer spuriously fails.
 
+## [0.2.0] — Core Read Tools
+
+The four read tools now return real data from a running Joplin instance, on top
+of a re-architected package layout.
+
+### Added
+
+- **Live read tools** against the Joplin Data API: `joplin_overview` (notebook
+  tree with note counts), `joplin_search` (keyword search with excerpts),
+  `joplin_read` (full note by ID), and `joplin_recent` (notes modified in the
+  last N days, ISO-8601 timestamps).
+- Typed configuration (`Settings`), a `JoplinError` exception hierarchy, and
+  pydantic response models (`Note`, `Notebook`, `SearchResult`, `RecentNote`)
+  that give each tool a rich MCP output schema.
+
+### Changed
+
+- **Package re-architected** from two flat modules into focused ones: `config`,
+  `errors`, `models`, `joplin_client`, `cli`, and a `tools/` package. The CLI
+  entry point moved to `second_brain_joplin.cli:main`.
+- The Joplin client now owns a single shared `httpx.AsyncClient` created via the
+  server lifespan (replacing the module-global singleton), follows Joplin's
+  `has_more`/`page` pagination, and maps HTTP failures to typed errors that
+  surface to MCP clients as `ToolError`.
+- `pydantic` is now a direct dependency and `fastmcp` is pinned to `>=3,<4`.
+- `joplin_create` remains a human-gated stub (issue #10), now wired through the
+  new client and taking a `Context` so the confirmation flow can slot in.
+
 ## [0.1.0] — Bootstrap
 
 Initial project skeleton — the MCP server starts and all tools are stubbed.
@@ -53,5 +81,6 @@ Initial project skeleton — the MCP server starts and all tools are stubbed.
 - Documentation: install, notebook structure (PARA), project management,
   releasing runbook, security policy, and an inspiration/reference note.
 
-[Unreleased]: https://github.com/jomkz/second-brain-joplin/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/jomkz/second-brain-joplin/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/jomkz/second-brain-joplin/releases/tag/v0.1.0
