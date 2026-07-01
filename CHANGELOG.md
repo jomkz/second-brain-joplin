@@ -22,7 +22,7 @@ Initial project skeleton — the MCP server starts and all tools are stubbed.
 - Test suite with `pytest` + `respx`, and a 90% coverage gate.
 - uv-based toolchain, `uv.lock`, and CI (ruff lint + format check, pytest on
   Python 3.11/3.12/3.13).
-- TestPyPI release workflow via OIDC trusted publishing.
+- PyPI release workflow via OIDC trusted publishing.
 - Dependabot config; pre-commit, EditorConfig, and pinned Python version.
 - Documentation: install, notebook structure (PARA), project management,
   releasing runbook, security policy, and an inspiration/reference note.
