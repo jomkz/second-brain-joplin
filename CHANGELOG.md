@@ -20,6 +20,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   packaging (`uv build` + `twine check` + wheel smoke test) on every PR.
 - Lint is now driven by `pre-commit` in CI, making `.pre-commit-config.yaml` the
   single source of truth for ruff (no more version drift with the dev group).
+- **mypy now runs in `strict` mode over both `src` and `tests`** (previously a
+  pragmatic baseline scoped to `src`); the CI type-check step is now `uv run mypy`.
 
 ### Added
 
@@ -27,6 +29,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   applies `component:*` labels to PRs from `.github/labeler.yml` — the config is
   migrated to the v5 schema and refreshed to match the v0.2 package layout.
 - **Static type checking** with `mypy` as a required CI gate (`uv run mypy src`).
+- **`actionlint` pre-commit hook** lints `.github/workflows/*.yml`, catching
+  workflow-syntax regressions locally (and in CI via `pre-commit run --all-files`).
 - Extra pre-commit hygiene hooks (end-of-file, trailing-whitespace, YAML/TOML
   checks).
 

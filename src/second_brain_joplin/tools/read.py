@@ -7,13 +7,13 @@ from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
 
 from ..errors import JoplinError
-from ..joplin_client import JoplinClient
+from ..joplin_client import JoplinClient, JsonDict
 from ..models import Note, Notebook, RecentNote, SearchResult, epoch_ms_to_iso
 
 EXCERPT_LENGTH = 200
 
 
-def _build_overview(folders: list[dict], notes_index: list[dict]) -> list[Notebook]:
+def _build_overview(folders: list[JsonDict], notes_index: list[JsonDict]) -> list[Notebook]:
     """Assemble a notebook tree with per-notebook note counts.
 
     ``folders`` and ``notes_index`` are raw Joplin dicts. Root folders have an
@@ -24,11 +24,11 @@ def _build_overview(folders: list[dict], notes_index: list[dict]) -> list[Notebo
         parent = note.get("parent_id", "")
         counts[parent] = counts.get(parent, 0) + 1
 
-    children_of: dict[str, list[dict]] = {}
+    children_of: dict[str, list[JsonDict]] = {}
     for folder in folders:
         children_of.setdefault(folder.get("parent_id", ""), []).append(folder)
 
-    def build(folder: dict) -> Notebook:
+    def build(folder: JsonDict) -> Notebook:
         folder_id = folder["id"]
         return Notebook(
             id=folder_id,

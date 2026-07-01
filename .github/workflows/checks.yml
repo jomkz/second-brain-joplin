@@ -38,7 +38,7 @@ jobs:
       - name: Install dependencies
         run: uv sync --locked
       - name: Run mypy
-        run: uv run mypy src
+        run: uv run mypy
 
   test:
     name: Test (Python ${{ matrix.python-version }})

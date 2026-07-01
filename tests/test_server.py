@@ -24,14 +24,14 @@ REQUIRED_PARAMS = {
 }
 
 
-async def test_all_five_tools_registered():
+async def test_all_five_tools_registered() -> None:
     async with Client(mcp) as client:
         names = {tool.name for tool in await client.list_tools()}
     assert names == EXPECTED_TOOLS
 
 
 @pytest.mark.parametrize("tool_name", sorted(EXPECTED_TOOLS))
-async def test_tool_input_schema_exposes_required_params(tool_name):
+async def test_tool_input_schema_exposes_required_params(tool_name: str) -> None:
     async with Client(mcp) as client:
         tools = {tool.name: tool for tool in await client.list_tools()}
 
@@ -43,14 +43,14 @@ async def test_tool_input_schema_exposes_required_params(tool_name):
         assert REQUIRED_PARAMS[tool_name] <= set(schema.get("required", []))
 
 
-async def test_joplin_recent_defaults_to_seven_days():
+async def test_joplin_recent_defaults_to_seven_days() -> None:
     async with Client(mcp) as client:
         tools = {tool.name: tool for tool in await client.list_tools()}
     days = tools["joplin_recent"].inputSchema["properties"]["days"]
     assert days["default"] == 7
 
 
-async def test_joplin_create_is_still_stubbed():
+async def test_joplin_create_is_still_stubbed() -> None:
     async with Client(mcp) as client:
         result = await client.call_tool(
             "joplin_create", {"title": "t", "body": "b", "notebook_id": "n"}
@@ -59,10 +59,10 @@ async def test_joplin_create_is_still_stubbed():
     assert result.data["tool"] == "joplin_create"
 
 
-async def test_lifespan_yields_client_and_closes(monkeypatch):
-    closed = {}
+async def test_lifespan_yields_client_and_closes(monkeypatch: pytest.MonkeyPatch) -> None:
+    closed: dict[str, bool] = {}
 
-    async def fake_aclose(self):
+    async def fake_aclose(self: JoplinClient) -> None:
         closed["ran"] = True
 
     monkeypatch.setattr(JoplinClient, "aclose", fake_aclose)
