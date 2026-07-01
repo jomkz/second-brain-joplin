@@ -1,5 +1,7 @@
 # Notebook structure
 
+<!-- labeler smoke test: throwaway change to exercise component:docs -->
+
 The [PARA method](https://fortelabs.com/blog/para/) maps cleanly onto Joplin
 notebooks and works well when an AI assistant is reading and filing your notes.
 This is a recommended starting layout, not a requirement — the MCP tools work

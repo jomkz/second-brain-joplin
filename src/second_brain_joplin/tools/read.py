@@ -1,4 +1,4 @@
-"""Read-only MCP tools backed by the Joplin Data API."""
+"""Read-only MCP tools backed by the Joplin Data API (read from Joplin)."""
 
 from datetime import UTC, datetime, timedelta
 from typing import cast
