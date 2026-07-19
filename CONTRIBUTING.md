@@ -92,20 +92,19 @@ uv run second-brain-joplin serve
 ## Issue triage checklist
 
 See [docs/project-management.md](docs/project-management.md) for the full model
-(issue types, labels, milestones). Every triaged issue should have:
+(kind of work, labels, milestones). Every triaged issue should have:
 
-1. **Issue type** — Epic / Feature / Task / Spike / Bug (set via sidebar)
+1. **Kind** — Epic (via the `epic` label) / Feature / Task / Spike / Bug (via the
+   issue-form template; personal accounts have no org-level issue types)
 2. **Milestone** — which release it targets (or `backlog` label if unscheduled)
 3. One or more **`component:*`** labels
-4. **Phase label** if applicable (`phase-0` through `phase-3`)
-5. **Parent Epic** set as a sub-issue where relevant
+4. **Parent Epic** set as a sub-issue where relevant
 
 ## Label conventions
 
 | Prefix | Values | Applied by |
 |---|---|---|
 | `component:` | `joplin-api`, `mcp`, `search`, `docs`, `ci`, `templates` | Maintainer (issues); [labeler bot](.github/workflows/labeler.yml) (PRs) |
-| `phase-` | `phase-0`, `phase-1`, `phase-2`, `phase-3` | Maintainer |
 | meta | `epic`, `backlog`, `needs-triage`, `blocked`, `good first issue`, `help wanted` | Maintainer |
 
 ## Commit style

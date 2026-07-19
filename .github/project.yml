@@ -23,20 +23,6 @@ labels:
     color: "0075ca"
     description: "Joplin note templates"
 
-  # phase labels
-  - name: "phase-0"
-    color: "e4e669"
-    description: "Bootstrap: repo scaffold, CI, package skeleton"
-  - name: "phase-1"
-    color: "e4e669"
-    description: "Core read MCP tools"
-  - name: "phase-2"
-    color: "e4e669"
-    description: "Semantic search"
-  - name: "phase-3"
-    color: "e4e669"
-    description: "Write workflow and publish"
-
   # meta labels
   - name: "epic"
     color: "6f42c1"
