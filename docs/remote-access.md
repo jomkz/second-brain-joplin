@@ -170,3 +170,36 @@ Every tool is read-only toward Joplin, the same over HTTP as over stdio:
   log (the Joplin token travels in the URL's query string, the only way Joplin's
   API accepts it) and uvicorn's access log (the sign-in callback URL carries the
   OAuth code).
+
+## Indexing
+
+A remote tool call has to finish quickly: claude.ai stops waiting after 240
+seconds, and Cloudflare drops a response that sends nothing for 125. A first
+full index of a large vault (model download plus every note) can take longer, so
+indexing stays out of the request path:
+
+- **Build it first, on the server's machine:** `second-brain-joplin reindex`
+  (add `--full` to rebuild from scratch). It has no time limit.
+- **Background sync:** in HTTP mode the server syncs once at start-up and then
+  every `SBJ_SYNC_INTERVAL_MINUTES` (default 15, 0 turns it off). Runs never
+  overlap, a failed run is logged and the next one tries again, and if semantic
+  search isn't installed the loop stops quietly.
+- **Over HTTP**, `joplin_reindex(full=True)` is refused with a pointer to the
+  command above; incremental syncs (`full=false`) still work.
+
+## Environment variables at a glance
+
+| Variable | Default | |
+|---|---|---|
+| `SBJ_TRANSPORT` | `stdio` | `http` for HTTP mode |
+| `SBJ_HOST` / `SBJ_PORT` / `SBJ_HTTP_PATH` | `127.0.0.1` / `8775` / `/mcp` | Where it listens |
+| `SBJ_PUBLIC_URL` | none | The public origin; required with sign-in |
+| `SBJ_GITHUB_CLIENT_ID` / `SBJ_GITHUB_CLIENT_SECRET` | none | The GitHub OAuth App |
+| `SBJ_JWT_SIGNING_KEY` | none | 32+ characters |
+| `SBJ_ALLOWED_GITHUB_IDS` | none | Numeric GitHub ids allowed in |
+| `SBJ_OAUTH_REDIRECT_URIS` | claude.ai's callback | OAuth clients allowed to register |
+| `SBJ_RATE_LIMIT_PER_MINUTE` | `60` | Tool calls per caller; 0 = off |
+| `SBJ_SYNC_INTERVAL_MINUTES` | `15` | Background index sync; 0 = off |
+
+Plus the usual `JOPLIN_API_TOKEN`, `JOPLIN_BASE_URL` and the `SBJ_*` semantic
+settings ([semantic-search.md](semantic-search.md)).

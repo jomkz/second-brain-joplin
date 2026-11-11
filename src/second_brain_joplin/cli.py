@@ -1,6 +1,7 @@
 """Command-line entry point for the Joplin MCP server."""
 
 import argparse
+import asyncio
 import os
 from pathlib import Path
 
@@ -9,7 +10,12 @@ from dotenv import dotenv_values, load_dotenv
 from . import __version__
 from .audit import configure_logging
 from .auth import AuthSettings, build_auth
+from .config import Settings
+from .context import AppContext
+from .errors import JoplinError, SemanticUnavailableError
+from .joplin_client import JoplinClient
 from .remote import ServeConfigError, http_options, run_http, validate
+from .semantic.types import SyncStats
 from .server import create_server, mcp
 
 TRANSPORTS = ("stdio", "http")
@@ -53,7 +59,38 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="load settings and secrets from this file first (variables already set win)",
     )
+    reindex = subparsers.add_parser(
+        "reindex",
+        help="Build or update the semantic index, with no time limit.",
+        description=(
+            "Sync the semantic index against Joplin from the command line. Use it for a "
+            "first build or a full rebuild, which can take longer than a remote tool "
+            "call may run. Needs the [semantic] extra and Joplin Desktop running."
+        ),
+    )
+    reindex.add_argument("--full", action="store_true", help="re-embed every note from scratch")
+    reindex.add_argument(
+        "--env-file", type=Path, help="load settings from this file first (set variables win)"
+    )
     return parser
+
+
+async def run_reindex(full: bool) -> SyncStats:
+    """Sync the index once, outside any server, and return what changed."""
+    settings = Settings.from_env()
+    client = JoplinClient(settings)
+    try:
+        return await AppContext(client=client, settings=settings).semantic().sync(full=full)
+    finally:
+        await client.aclose()
+
+
+def reindex(args: argparse.Namespace) -> None:
+    stats = asyncio.run(run_reindex(args.full))
+    print(
+        f"added={stats.added} updated={stats.updated} deleted={stats.deleted} "
+        f"total={stats.total} model={stats.model_name}"
+    )
 
 
 def load_env_file(path: Path) -> None:
@@ -99,18 +136,18 @@ def serve(args: argparse.Namespace) -> None:
     auth_settings = AuthSettings.from_env()
     validate(options, auth_configured=auth_settings is not None)
     configure_logging()
-    if auth_settings is None:
-        run_http(create_server(rate_limit_per_minute=options.rate_limit_per_minute), options)
-        return
-    assert options.public_url is not None  # validate() guarantees it with sign-in
-    run_http(
-        create_server(
-            auth=build_auth(auth_settings, options.public_url),
-            allowed_ids=auth_settings.allowed_ids,
-            rate_limit_per_minute=options.rate_limit_per_minute,
-        ),
-        options,
+    auth = None
+    if auth_settings is not None:
+        assert options.public_url is not None  # validate() guarantees it with sign-in
+        auth = build_auth(auth_settings, options.public_url)
+    server = create_server(
+        auth=auth,
+        allowed_ids=auth_settings.allowed_ids if auth_settings else None,
+        rate_limit_per_minute=options.rate_limit_per_minute,
+        remote=True,
+        sync_interval_minutes=options.sync_interval_minutes,
     )
+    run_http(server, options)
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -125,8 +162,12 @@ def main(argv: list[str] | None = None) -> None:
         load_dotenv()
         if args.command == "serve":
             serve(args)
+        elif args.command == "reindex":
+            reindex(args)
     except ServeConfigError as exc:
         parser.exit(2, f"{parser.prog}: error: {exc}\n")
+    except (SemanticUnavailableError, JoplinError) as exc:
+        parser.exit(1, f"{parser.prog}: error: {exc}\n")
 
 
 if __name__ == "__main__":  # pragma: no cover

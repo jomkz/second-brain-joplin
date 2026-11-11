@@ -23,6 +23,9 @@ class AppContext:
 
     client: JoplinClient
     settings: Settings
+    # True in HTTP mode: tools that would run past a remote client's time limit
+    # (a full reindex) refuse there and point at the CLI instead.
+    remote: bool = False
     _semantic: SemanticSearchService | None = field(default=None, init=False, repr=False)
 
     def semantic(self) -> SemanticSearchService:

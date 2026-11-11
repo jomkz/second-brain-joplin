@@ -12,9 +12,19 @@ complements — it does not replace — the keyword `joplin_search`.
 | `joplin_semantic_search(query, limit=10)` | Returns the `limit` most similar notes (`id`, `title`, `excerpt`, `score`). Runs a quick incremental sync first (unless disabled). |
 | `joplin_reindex(full=False)` | Syncs the index. `full=True` drops and re-embeds everything; otherwise only notes changed since the last sync are re-embedded. |
 
-Run `joplin_reindex` once after enabling the feature to build the initial index
-(this downloads the embedding model the first time). Subsequent searches keep it
-fresh automatically.
+Build the initial index once after enabling the feature (this downloads the
+embedding model the first time). From the command line, with no time limit:
+
+```bash
+uvx --from "second-brain-joplin[semantic]" second-brain-joplin reindex        # incremental
+uvx --from "second-brain-joplin[semantic]" second-brain-joplin reindex --full # from scratch
+```
+
+or call `joplin_reindex` from your MCP client. Subsequent searches keep the index
+fresh automatically. In HTTP mode the server also syncs it in the background every
+`SBJ_SYNC_INTERVAL_MINUTES` (default 15, 0 = off), and `joplin_reindex(full=True)`
+is refused there, because a full rebuild can outlast a remote tool call; use the
+command above on the server's machine (see [remote-access.md](remote-access.md)).
 
 ## Installation
 

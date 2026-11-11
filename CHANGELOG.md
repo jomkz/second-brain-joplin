@@ -36,6 +36,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   arguments, results or credentials. httpx's request log, which would print the
   Joplin token from the URL, and uvicorn's access log, which would print the
   OAuth code, are off in HTTP mode.
+- **`reindex` subcommand and background sync** (#55):
+  `second-brain-joplin reindex [--full]` builds or syncs the semantic index from
+  the command line, with no time limit. In HTTP mode the server syncs the index
+  at start-up and then every `SBJ_SYNC_INTERVAL_MINUTES` (default 15, 0 = off),
+  never overlapping and carrying on after a failed run; and `joplin_reindex(full=True)`
+  is refused there with a pointer to the CLI, since a full rebuild can outlast a
+  remote tool call.
 - **Tool annotations** (#53): every tool declares its side effects (read-only;
   `joplin_reindex` updates the local index only, idempotent, non-destructive).
 

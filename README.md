@@ -112,8 +112,8 @@ PyTorch) with [`sqlite-vec`](https://github.com/asg017/sqlite-vec). You can swap
 either backend via env vars (e.g. `bge-m3` via `sentence-transformers`, or a
 ChromaDB store) — see [docs/semantic-search.md](docs/semantic-search.md).
 
-Call `joplin_reindex` once to build the index (this downloads the embedding
-model the first time). After that, `joplin_semantic_search` keeps the index
+Build the index once with `second-brain-joplin reindex` (or the `joplin_reindex`
+tool); this downloads the embedding model the first time. After that, `joplin_semantic_search` keeps the index
 fresh incrementally — only notes changed since the last sync are re-embedded.
 
 ---
@@ -152,7 +152,7 @@ The [PARA method](https://fortelabs.com/blog/para/) works well with Joplin. See 
 
 ## Security & privacy
 
-This server keeps your notes local: it talks only to Joplin's Web Clipper REST API on `localhost` and runs on your own machine. Anything an MCP client can read, the connected AI can read — so apply least privilege and don't expose notebooks with credentials or other sensitive data. Note creation is planned as an explicit human-gated flow (v0.5); until then the server does no silent writes.
+By default (stdio) this server keeps your notes local: it talks only to Joplin's Web Clipper REST API on `localhost` and runs on your own machine. HTTP mode, for a Claude custom connector, deliberately sends what Claude reads to Anthropic, behind GitHub sign-in limited to your account ([remote access](docs/remote-access.md)). Anything an MCP client can read, the connected AI can read — so apply least privilege and don't expose notebooks with credentials or other sensitive data. Note creation is planned as an explicit human-gated flow (v0.5); until then the server does no silent writes.
 
 Two caveats apply once you enable semantic search: it writes a **local index** (under your XDG data dir by default) that stores note text excerpts and titles alongside the embeddings, and it downloads the embedding model **once over the network** on the first reindex. Your note *content* is embedded locally and never leaves your machine. See [SECURITY.md](SECURITY.md) for details and how to report a vulnerability.
 

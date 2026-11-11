@@ -27,6 +27,8 @@ DEFAULT_PORT = 8775
 DEFAULT_PATH = "/mcp"
 # Tool calls per minute per caller (a token bucket that allows bursts of half).
 DEFAULT_RATE_LIMIT = 60
+# Minutes between background index syncs in HTTP mode (0 = off).
+DEFAULT_SYNC_INTERVAL = 15
 
 
 class ServeConfigError(Exception):
@@ -43,6 +45,7 @@ class HttpOptions:
     public_url: str | None = None
     no_auth: bool = False
     rate_limit_per_minute: int = DEFAULT_RATE_LIMIT
+    sync_interval_minutes: int = DEFAULT_SYNC_INTERVAL
 
     @property
     def public_host(self) -> str | None:
@@ -90,6 +93,7 @@ def http_options(
     env = os.environ if environ is None else environ
     env_port = _env_int(env, "SBJ_PORT")
     env_rate = _env_int(env, "SBJ_RATE_LIMIT_PER_MINUTE")
+    env_sync = _env_int(env, "SBJ_SYNC_INTERVAL_MINUTES")
     return HttpOptions(
         host=host or env.get("SBJ_HOST") or DEFAULT_HOST,
         port=port if port is not None else (env_port if env_port is not None else DEFAULT_PORT),
@@ -97,6 +101,7 @@ def http_options(
         public_url=(public_url or env.get("SBJ_PUBLIC_URL") or None),
         no_auth=no_auth,
         rate_limit_per_minute=DEFAULT_RATE_LIMIT if env_rate is None else env_rate,
+        sync_interval_minutes=DEFAULT_SYNC_INTERVAL if env_sync is None else env_sync,
     )
 
 
@@ -126,6 +131,8 @@ def validate(options: HttpOptions, *, auth_configured: bool) -> None:
         raise ServeConfigError(f"the port must be between 1 and 65535, got {options.port}")
     if options.rate_limit_per_minute < 0:
         raise ServeConfigError("SBJ_RATE_LIMIT_PER_MINUTE must be 0 (off) or more")
+    if options.sync_interval_minutes < 0:
+        raise ServeConfigError("SBJ_SYNC_INTERVAL_MINUTES must be 0 (off) or more")
     if not options.path.startswith("/"):
         raise ServeConfigError(f"the endpoint path must start with '/', got {options.path!r}")
     if options.public_url:

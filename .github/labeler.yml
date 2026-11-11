@@ -20,6 +20,7 @@ component:search:
   - changed-files:
       - any-glob-to-any-file:
           - src/second_brain_joplin/semantic/**
+          - src/second_brain_joplin/background.py
 
 component:docs:
   - changed-files:

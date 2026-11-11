@@ -38,8 +38,15 @@ def register(mcp: FastMCP) -> None:
     @mcp.tool(annotations=LOCAL_INDEX_WRITE)
     async def joplin_reindex(ctx: Context, full: bool = False) -> ReindexResult:
         """Sync the semantic index. ``full=True`` re-embeds every note from scratch."""
+        app = app_context(ctx)
+        if full and app.remote:
+            raise ToolError(
+                "A full rebuild can take longer than a remote tool call may run. Run "
+                "`second-brain-joplin reindex --full` on the server's machine instead; "
+                "incremental syncs (full=false) work here."
+            )
         try:
-            service = app_context(ctx).semantic()
+            service = app.semantic()
             stats = await service.sync(full=full)
         except (SemanticUnavailableError, JoplinError) as exc:
             raise ToolError(str(exc)) from exc
