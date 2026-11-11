@@ -2,9 +2,10 @@ name: Release (PyPI)
 
 # Runs the full check suite (lint, type-check, test matrix, build) on the tagged
 # commit, then publishes the *tested* artifact to PyPI via an OIDC trusted
-# publisher (no stored token). The trusted publisher is registered on
-# https://pypi.org for the `jomkz/second-brain-joplin` repo, environment `pypi`.
-# A red check blocks the publish. See docs/releasing.md.
+# publisher (no stored token), then creates the GitHub Release for the tag. The
+# trusted publisher is registered on https://pypi.org for the
+# `jomkz/second-brain-joplin` repo, environment `pypi`. A red check blocks the
+# publish. See docs/releasing.md.
 
 on:
   push:
@@ -32,3 +33,26 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           skip-existing: true
+
+  # The GitHub Release for the tag, after PyPI so it never announces a version
+  # that failed to publish. Notes come from the version's CHANGELOG.md section and
+  # the tested sdist + wheel are attached. Re-running updates it in place.
+  github-release:
+    name: GitHub Release
+    needs: publish
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # create the release and upload its assets
+    steps:
+      - uses: actions/checkout@v7
+      - name: Download built distributions
+        uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: scripts/github-release.sh "$TAG" dist/*

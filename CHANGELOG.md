@@ -31,6 +31,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   workflow-syntax regressions locally (and in CI via `pre-commit run --all-files`).
 - Extra pre-commit hygiene hooks (end-of-file, trailing-whitespace, YAML/TOML
   checks).
+- **GitHub Releases** (#24): a version tag now also creates a GitHub Release,
+  after the PyPI publish, with notes from that version's CHANGELOG section and
+  the tested sdist and wheel attached. Pre-release versions are marked as such,
+  and re-running updates the release in place (`scripts/github-release.sh`,
+  which also backfills older tags).
 
 ### Changed
 
