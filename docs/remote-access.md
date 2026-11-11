@@ -150,3 +150,23 @@ Every tool is read-only toward Joplin, the same over HTTP as over stdio:
 - **Long notes are read in pages.** Claude caps a tool result near 150,000
   characters, so `joplin_read` returns at most `max_chars` (default 50,000, up to
   100,000) from `offset`, with `total_chars` and `next_offset` for the rest.
+
+## Limits and logs
+
+- **Rate limit:** `SBJ_RATE_LIMIT_PER_MINUTE` tool calls per minute per GitHub
+  account (default 60, 0 turns it off), as a token bucket that allows bursts of
+  half that. Listing tools and protocol requests aren't counted. Over the limit,
+  the call is refused with "Rate limit exceeded".
+- **Semantic search** runs at most two queries at a time, so a burst can't tie
+  up the embedding model.
+- **Logs** go to stderr, one line per tool call:
+
+  ```
+  2026-11-11 16:40:02,113 INFO second_brain_joplin.audit: tool=joplin_search caller=65598 outcome=ok ms=41
+  ```
+
+  Never the arguments (a search query is note content), never results, never
+  tokens. Two loggers that would leak are silenced in HTTP mode: httpx's request
+  log (the Joplin token travels in the URL's query string, the only way Joplin's
+  API accepts it) and uvicorn's access log (the sign-in callback URL carries the
+  OAuth code).

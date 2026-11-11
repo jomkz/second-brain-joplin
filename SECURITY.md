@@ -29,6 +29,10 @@ public issue. We aim to acknowledge reports within a few days.
     without sign-in, except `--no-auth` on loopback for a local test.
   - Only claude.ai's OAuth callback may register as a client by default.
   - A strict Host check (421 for unknown hosts) against DNS rebinding.
+  - A rate limit per GitHub account, and a cap on concurrent semantic searches.
+  - Logs record each tool call's name, caller id, outcome and duration, never
+    arguments, results or credentials; the HTTP client and access logs that
+    would print the Joplin token or an OAuth code are silenced.
   - Put a firewall in front where you can: Claude's requests come from
     Anthropic's published outbound ranges, and only the browser sign-in pages
     need to be reachable from anywhere.

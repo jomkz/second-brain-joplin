@@ -32,6 +32,16 @@ def test_defaults() -> None:
     options = http_options(environ={})
     assert options == HttpOptions(host="127.0.0.1", port=DEFAULT_PORT, path="/mcp")
     assert options.public_host is None
+    assert options.rate_limit_per_minute == 60
+
+
+def test_rate_limit_from_environment() -> None:
+    assert http_options(environ={"SBJ_RATE_LIMIT_PER_MINUTE": "0"}).rate_limit_per_minute == 0
+    assert http_options(environ={"SBJ_RATE_LIMIT_PER_MINUTE": "5"}).rate_limit_per_minute == 5
+    with pytest.raises(ServeConfigError, match="SBJ_RATE_LIMIT_PER_MINUTE"):
+        http_options(environ={"SBJ_RATE_LIMIT_PER_MINUTE": "lots"})
+    with pytest.raises(ServeConfigError, match="SBJ_RATE_LIMIT_PER_MINUTE"):
+        validate(HttpOptions(no_auth=True, rate_limit_per_minute=-1), auth_configured=False)
 
 
 def test_environment_fills_in_and_flags_win() -> None:
@@ -175,6 +185,7 @@ def test_run_http_passes_the_same_kwargs(monkeypatch: pytest.MonkeyPatch) -> Non
         "host": "::1",
         "port": 9400,
         "show_banner": False,
+        "uvicorn_config": {"access_log": False},
         **http_app_kwargs(options),
     }
 

@@ -29,6 +29,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Paged `joplin_read`** (#53): `offset` and `max_chars` (default 50,000, at
   most 100,000 characters) with `total_chars` and `next_offset` in the result,
   so a long note is read in pages instead of overflowing a client's result cap.
+- **Rate limit and safe logging** (#54): tool calls are limited per GitHub
+  account (`SBJ_RATE_LIMIT_PER_MINUTE`, default 60, bursts of half; listing
+  tools isn't counted), semantic searches run at most two at a time, and each
+  tool call logs one line (tool, caller id, outcome, duration) with no
+  arguments, results or credentials. httpx's request log, which would print the
+  Joplin token from the URL, and uvicorn's access log, which would print the
+  OAuth code, are off in HTTP mode.
 - **Tool annotations** (#53): every tool declares its side effects (read-only;
   `joplin_reindex` updates the local index only, idempotent, non-destructive).
 

@@ -21,6 +21,10 @@ from .types import ChunkRecord, Embedder, QueryHit, SyncStats, VectorIndex
 _QUERY_OVERFETCH = 4
 
 
+# Semantic searches that may embed and query at the same time.
+SEARCH_CONCURRENCY = 2
+
+
 class SemanticSearchService:
     """Keeps the embedding index in sync and answers semantic queries."""
 
@@ -36,6 +40,9 @@ class SemanticSearchService:
         self._index = index
         self._settings = settings
         self._lock = asyncio.Lock()
+        # Query embedding runs on worker threads; a remote caller firing many
+        # searches at once could otherwise tie up the model and the CPU.
+        self._search_slots = asyncio.Semaphore(SEARCH_CONCURRENCY)
 
     async def sync(self, *, full: bool = False) -> SyncStats:
         """Incrementally re-embed changed notes (or rebuild everything)."""
@@ -104,8 +111,9 @@ class SemanticSearchService:
         if self._settings.semantic_auto_sync:
             await self.sync()
 
-        embedding = await asyncio.to_thread(self._embedder.embed_query, query)
-        hits = await asyncio.to_thread(self._index.query, embedding, limit * _QUERY_OVERFETCH)
+        async with self._search_slots:
+            embedding = await asyncio.to_thread(self._embedder.embed_query, query)
+            hits = await asyncio.to_thread(self._index.query, embedding, limit * _QUERY_OVERFETCH)
 
         best: dict[str, QueryHit] = {}
         for hit in hits:  # hits are ordered best-first

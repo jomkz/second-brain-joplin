@@ -5,10 +5,11 @@ from contextlib import asynccontextmanager
 
 from fastmcp import FastMCP
 from fastmcp.server.auth import AuthProvider
-from fastmcp.server.middleware import AuthMiddleware
+from fastmcp.server.middleware import AuthMiddleware, Middleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
+from .audit import AuditMiddleware, rate_limit
 from .auth import allowlist_check
 from .config import Settings
 from .context import AppContext
@@ -48,16 +49,25 @@ async def healthz(_request: Request) -> JSONResponse:
 
 
 def create_server(
-    *, auth: AuthProvider | None = None, allowed_ids: frozenset[str] | None = None
+    *,
+    auth: AuthProvider | None = None,
+    allowed_ids: frozenset[str] | None = None,
+    rate_limit_per_minute: int = 0,
 ) -> FastMCP:
     """Build the MCP server with every tool and the ``/healthz`` route.
 
     With ``auth`` (HTTP mode), ``allowed_ids`` adds the per-tool allowlist check as
-    a second layer behind the token verifier.
+    a second layer behind the token verifier. ``rate_limit_per_minute`` (0 = off)
+    limits each caller. Every tool call is logged without its content (audit.py).
     """
     if auth is not None and not allowed_ids:
         raise ValueError("a server with sign-in needs its allowed GitHub ids")
-    middleware = [AuthMiddleware(auth=allowlist_check(allowed_ids))] if allowed_ids else []
+    middleware: list[Middleware] = []
+    if rate_limit_per_minute:
+        middleware.append(rate_limit(rate_limit_per_minute))
+    if allowed_ids:
+        middleware.append(AuthMiddleware(auth=allowlist_check(allowed_ids)))
+    middleware.append(AuditMiddleware())
     server = FastMCP("second-brain-joplin", lifespan=lifespan, auth=auth, middleware=middleware)
     register_tools(server)
     server.custom_route("/healthz", methods=["GET"])(healthz)

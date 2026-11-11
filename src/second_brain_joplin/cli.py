@@ -7,6 +7,7 @@ from pathlib import Path
 from dotenv import dotenv_values, load_dotenv
 
 from . import __version__
+from .audit import configure_logging
 from .auth import AuthSettings, build_auth
 from .remote import ServeConfigError, http_options, run_http, validate
 from .server import create_server, mcp
@@ -97,14 +98,16 @@ def serve(args: argparse.Namespace) -> None:
     )
     auth_settings = AuthSettings.from_env()
     validate(options, auth_configured=auth_settings is not None)
+    configure_logging()
     if auth_settings is None:
-        run_http(create_server(), options)
+        run_http(create_server(rate_limit_per_minute=options.rate_limit_per_minute), options)
         return
     assert options.public_url is not None  # validate() guarantees it with sign-in
     run_http(
         create_server(
             auth=build_auth(auth_settings, options.public_url),
             allowed_ids=auth_settings.allowed_ids,
+            rate_limit_per_minute=options.rate_limit_per_minute,
         ),
         options,
     )

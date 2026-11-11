@@ -25,6 +25,8 @@ DEFAULT_HOST = "127.0.0.1"
 # workstation), so HTTP mode starts one step away from it.
 DEFAULT_PORT = 8775
 DEFAULT_PATH = "/mcp"
+# Tool calls per minute per caller (a token bucket that allows bursts of half).
+DEFAULT_RATE_LIMIT = 60
 
 
 class ServeConfigError(Exception):
@@ -40,6 +42,7 @@ class HttpOptions:
     path: str = DEFAULT_PATH
     public_url: str | None = None
     no_auth: bool = False
+    rate_limit_per_minute: int = DEFAULT_RATE_LIMIT
 
     @property
     def public_host(self) -> str | None:
@@ -59,14 +62,14 @@ def is_loopback(host: str) -> bool:
         return False
 
 
-def _env_port(environ: Mapping[str, str]) -> int | None:
-    raw = environ.get("SBJ_PORT")
+def _env_int(environ: Mapping[str, str], name: str) -> int | None:
+    raw = environ.get(name)
     if raw is None or raw == "":
         return None
     try:
         return int(raw)
     except ValueError:
-        raise ServeConfigError(f"SBJ_PORT must be a number, got {raw!r}") from None
+        raise ServeConfigError(f"{name} must be a number, got {raw!r}") from None
 
 
 def http_options(
@@ -85,13 +88,15 @@ def http_options(
     must be visible on the command line.
     """
     env = os.environ if environ is None else environ
-    env_port = _env_port(env)
+    env_port = _env_int(env, "SBJ_PORT")
+    env_rate = _env_int(env, "SBJ_RATE_LIMIT_PER_MINUTE")
     return HttpOptions(
         host=host or env.get("SBJ_HOST") or DEFAULT_HOST,
         port=port if port is not None else (env_port if env_port is not None else DEFAULT_PORT),
         path=path or env.get("SBJ_HTTP_PATH") or DEFAULT_PATH,
         public_url=(public_url or env.get("SBJ_PUBLIC_URL") or None),
         no_auth=no_auth,
+        rate_limit_per_minute=DEFAULT_RATE_LIMIT if env_rate is None else env_rate,
     )
 
 
@@ -119,6 +124,8 @@ def validate(options: HttpOptions, *, auth_configured: bool) -> None:
     """
     if not 1 <= options.port <= 65535:
         raise ServeConfigError(f"the port must be between 1 and 65535, got {options.port}")
+    if options.rate_limit_per_minute < 0:
+        raise ServeConfigError("SBJ_RATE_LIMIT_PER_MINUTE must be 0 (off) or more")
     if not options.path.startswith("/"):
         raise ServeConfigError(f"the endpoint path must start with '/', got {options.path!r}")
     if options.public_url:
@@ -169,5 +176,8 @@ def run_http(server: FastMCP, options: HttpOptions) -> None:
         host=options.host,
         port=options.port,
         show_banner=False,
+        # The access log would record the OAuth callback's query string, which
+        # carries the authorization code. Tool calls are logged by audit.py.
+        uvicorn_config={"access_log": False},
         **http_app_kwargs(options),
     )
