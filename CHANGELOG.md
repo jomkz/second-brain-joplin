@@ -17,6 +17,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and Joplin are up. HTTP mode refuses to start without sign-in, except with
   `--no-auth` on a loopback address for local testing
   ([remote access guide](docs/remote-access.md)).
+- **GitHub sign-in with an id allowlist** (#52): HTTP mode signs in through
+  FastMCP's OAuth proxy with GitHub upstream, which gives Claude's connectors
+  the Dynamic Client Registration and Client ID Metadata Documents they expect.
+  Only the numeric GitHub user ids in `SBJ_ALLOWED_GITHUB_IDS` get in (anyone
+  else gets 401, and a second check runs per tool); scope `read:user`;
+  verification cached for five minutes; only claude.ai's callback may register
+  (`SBJ_OAUTH_REDIRECT_URIS` to change it); an explicit `SBJ_JWT_SIGNING_KEY` so
+  a client-secret rotation doesn't sign Claude out. Partial or malformed sign-in
+  settings are refused at start-up, naming what's wrong without printing values.
 
 ### Fixed
 

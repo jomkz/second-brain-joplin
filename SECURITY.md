@@ -8,14 +8,38 @@ public issue. We aim to acknowledge reports within a few days.
 
 ## Data handling & privacy
 
-`second-brain-joplin` is designed to keep your notes local:
+`second-brain-joplin` keeps your notes on your machine unless you choose HTTP mode:
 
-- **Local-only API.** The server talks to Joplin's Web Clipper REST API on
-  `localhost` (default `http://localhost:41184`). It does not send your notes to
-  any third-party service.
-- **Runs on your machine.** The MCP server runs locally, launched by your MCP
-  client (e.g. Claude Code). Your Joplin API token is read from the environment
-  (`JOPLIN_API_TOKEN`) and is never committed — keep it out of version control.
+- **Joplin stays local.** The server talks to Joplin's Web Clipper REST API on
+  `localhost` (default `http://localhost:41184`). The Joplin API token is read from
+  the environment (`JOPLIN_API_TOKEN`), never leaves the machine, and is never
+  committed — keep it out of version control.
+- **stdio (the default) is local only.** The server is launched by an MCP client
+  on the same machine (e.g. Claude Code) and talks to nothing else. What the AI
+  client then does with what it reads is that client's business.
+- **HTTP mode reaches the internet, deliberately.** `serve --transport http`
+  (see [docs/remote-access.md](docs/remote-access.md)) lets a Claude custom
+  connector call the server from Anthropic's cloud. Note content a tool returns
+  then travels to Anthropic over HTTPS, the same as anything else you show Claude.
+  The protections, in order:
+  - The server binds to loopback; a tunnel or reverse proxy you run publishes it.
+  - **GitHub sign-in, limited to listed numeric GitHub ids**
+    (`SBJ_ALLOWED_GITHUB_IDS`): any other account gets 401 before a tool runs,
+    and a second check runs again for every tool. HTTP mode refuses to start
+    without sign-in, except `--no-auth` on loopback for a local test.
+  - Only claude.ai's OAuth callback may register as a client by default.
+  - A strict Host check (421 for unknown hosts) against DNS rebinding.
+  - Put a firewall in front where you can: Claude's requests come from
+    Anthropic's published outbound ranges, and only the browser sign-in pages
+    need to be reachable from anywhere.
+- **Token lifetime.** A GitHub OAuth App issues no refresh token, so the token
+  FastMCP gives Claude lasts a year. To cut access at once, do any of: revoke the
+  app's grant at GitHub (Settings → Applications → Authorized OAuth Apps), rotate
+  `SBJ_JWT_SIGNING_KEY` (every issued token stops working), or stop the tunnel.
+- **Notes are untrusted input to the AI.** A note can hold text from anywhere
+  (web clippings, pasted email). Claude reads it as data, but text written to
+  steer an AI is still text an AI reads: keep that in mind for notes you didn't
+  write, especially once write tools exist.
 - **Least privilege.** Anything an MCP client can read, the connected AI can
   read. Don't expose notebooks containing credentials, regulated data, or other
   people's private information. Apply least privilege to your notes.

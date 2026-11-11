@@ -77,3 +77,60 @@ For a quick local test with no sign-in:
 second-brain-joplin serve --transport http --no-auth
 curl -s http://127.0.0.1:8775/healthz
 ```
+
+## Sign-in
+
+Claude's custom connectors sign in with OAuth. HTTP mode uses FastMCP's OAuth
+proxy with **GitHub** as the identity provider: the proxy offers Claude the
+client registration it expects (Dynamic Client Registration, or a Client ID
+Metadata Document), sends you to GitHub to sign in, and then hands Claude a token
+of its own. GitHub sign-in alone would admit any GitHub account, so the server
+also checks every request against a list of **numeric GitHub user ids**. Ids, not
+logins: a login can be renamed and then registered by someone else.
+
+### Set it up
+
+1. **Create a GitHub OAuth App** on your own account (GitHub → Settings →
+   Developer settings → OAuth Apps → New OAuth App):
+   - Homepage URL: your public URL, e.g. `https://joplin.example.com`
+   - Authorization callback URL: `https://joplin.example.com/auth/callback`
+   Then generate a client secret.
+2. **Find your GitHub id:** `curl -s https://api.github.com/users/<login> | jq .id`.
+3. **Set all four variables** (an env file passed with `--env-file`, mode 600, is
+   a good home for them):
+
+   | Variable | What |
+   |---|---|
+   | `SBJ_GITHUB_CLIENT_ID` | The OAuth App's client id |
+   | `SBJ_GITHUB_CLIENT_SECRET` | The OAuth App's client secret |
+   | `SBJ_JWT_SIGNING_KEY` | 32+ random characters: `openssl rand -base64 32` |
+   | `SBJ_ALLOWED_GITHUB_IDS` | Your numeric id; several, comma-separated |
+
+   Optional: `SBJ_OAUTH_REDIRECT_URIS`, the OAuth clients allowed to register
+   (default: claude.ai's callback only, `https://claude.ai/api/mcp/auth_callback`).
+4. **Start the server** with `--public-url` (or `SBJ_PUBLIC_URL`); sign-in needs it.
+
+Set all four or none: some but not all is refused at start-up, naming what's
+missing (never a value).
+
+### What it does
+
+- **Anyone not listed gets 401** before any MCP message is read. A second check
+  runs for every tool, so a mistake in one layer doesn't open the tools.
+- **Scope `read:user`:** the server only ever learns your public profile.
+  (FastMCP's default, `user`, could also write it.)
+- **GitHub is asked once per five minutes per token**, not on every request.
+- **Registered clients survive restarts.** FastMCP keeps them in an encrypted
+  store on disk (under your user data directory), keyed from
+  `SBJ_JWT_SIGNING_KEY`. Rotating the GitHub client secret changes nothing for
+  Claude; rotating the signing key signs every client out.
+- **Consent page:** after GitHub, the server asks you to approve the client once.
+
+### Turning access off
+
+The token Claude holds lasts a year (GitHub OAuth Apps issue no refresh token).
+To cut access at once, do any one of:
+
+- revoke the grant at GitHub: Settings → Applications → Authorized OAuth Apps;
+- rotate `SBJ_JWT_SIGNING_KEY` and restart: every issued token stops working;
+- stop the tunnel, or the server.

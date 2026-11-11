@@ -11,6 +11,7 @@ component:mcp:
           - src/second_brain_joplin/server.py
           - src/second_brain_joplin/cli.py
           - src/second_brain_joplin/remote.py
+          - src/second_brain_joplin/auth.py
           - src/second_brain_joplin/models.py
           - src/second_brain_joplin/tools/**
 

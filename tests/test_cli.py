@@ -15,7 +15,18 @@ from second_brain_joplin.server import mcp
 def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
     # setenv-then-delenv records each variable so monkeypatch removes it again
     # afterwards, including values an --env-file test loads.
-    for name in ("SBJ_TRANSPORT", "SBJ_HOST", "SBJ_PORT", "SBJ_HTTP_PATH", "SBJ_PUBLIC_URL"):
+    for name in (
+        "SBJ_TRANSPORT",
+        "SBJ_HOST",
+        "SBJ_PORT",
+        "SBJ_HTTP_PATH",
+        "SBJ_PUBLIC_URL",
+        "SBJ_GITHUB_CLIENT_ID",
+        "SBJ_GITHUB_CLIENT_SECRET",
+        "SBJ_JWT_SIGNING_KEY",
+        "SBJ_ALLOWED_GITHUB_IDS",
+        "SBJ_OAUTH_REDIRECT_URIS",
+    ):
         monkeypatch.setenv(name, "")
         monkeypatch.delenv(name)
     # Keep the developer's own .env out of these tests.
@@ -135,3 +146,60 @@ def test_missing_env_file_is_an_error(tmp_path: Path, capsys: pytest.CaptureFixt
         cli.main(["serve", "--env-file", str(tmp_path / "absent.env")])
     assert exc.value.code == 2
     assert "absent.env" in capsys.readouterr().err
+
+
+SIGN_IN_ENV = {
+    "SBJ_GITHUB_CLIENT_ID": "id",
+    "SBJ_GITHUB_CLIENT_SECRET": "secret",
+    "SBJ_JWT_SIGNING_KEY": "k" * 40,
+    "SBJ_ALLOWED_GITHUB_IDS": "65598",
+}
+
+
+@pytest.fixture
+def sign_in_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name, value in SIGN_IN_ENV.items():
+        monkeypatch.setenv(name, value)
+
+
+def test_http_with_sign_in_builds_an_authed_server(
+    sign_in_env: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from fastmcp.server.auth import StaticTokenVerifier
+
+    built: dict[str, Any] = {}
+    fake_auth = StaticTokenVerifier(tokens={})
+
+    def fake_build_auth(settings: Any, public_url: str) -> StaticTokenVerifier:
+        built.update(ids=settings.allowed_ids, public_url=public_url)
+        return fake_auth
+
+    servers: list[Any] = []
+    monkeypatch.setattr(cli, "build_auth", fake_build_auth)
+    monkeypatch.setattr(cli, "run_http", lambda server, options: servers.append((server, options)))
+    cli.main(["serve", "--transport", "http", "--public-url", "https://joplin.example.com"])
+    assert built == {"ids": frozenset({"65598"}), "public_url": "https://joplin.example.com"}
+    server, options = servers[0]
+    assert server.auth is fake_auth
+    assert options.public_url == "https://joplin.example.com"
+
+
+def test_http_with_sign_in_but_no_public_url_is_refused(
+    sign_in_env: None, capsys: pytest.CaptureFixture[str], http_calls: list[HttpOptions]
+) -> None:
+    with pytest.raises(SystemExit) as exc:
+        cli.main(["serve", "--transport", "http"])
+    assert exc.value.code == 2
+    assert "public URL" in capsys.readouterr().err
+    assert http_calls == []
+
+
+def test_partial_sign_in_is_refused_without_printing_secrets(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("SBJ_GITHUB_CLIENT_SECRET", "secret-value-123")
+    with pytest.raises(SystemExit):
+        cli.main(["serve", "--transport", "http", "--public-url", "https://joplin.example.com"])
+    err = capsys.readouterr().err
+    assert "SBJ_GITHUB_CLIENT_ID" in err
+    assert "secret-value-123" not in err

@@ -4,9 +4,12 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastmcp import FastMCP
+from fastmcp.server.auth import AuthProvider
+from fastmcp.server.middleware import AuthMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
+from .auth import allowlist_check
 from .config import Settings
 from .context import AppContext
 from .joplin_client import JoplinClient
@@ -44,9 +47,18 @@ async def healthz(_request: Request) -> JSONResponse:
     return JSONResponse({"server": True, "joplin": joplin}, status_code=200 if joplin else 503)
 
 
-def create_server() -> FastMCP:
-    """Build the MCP server with every tool and the ``/healthz`` route."""
-    server = FastMCP("second-brain-joplin", lifespan=lifespan)
+def create_server(
+    *, auth: AuthProvider | None = None, allowed_ids: frozenset[str] | None = None
+) -> FastMCP:
+    """Build the MCP server with every tool and the ``/healthz`` route.
+
+    With ``auth`` (HTTP mode), ``allowed_ids`` adds the per-tool allowlist check as
+    a second layer behind the token verifier.
+    """
+    if auth is not None and not allowed_ids:
+        raise ValueError("a server with sign-in needs its allowed GitHub ids")
+    middleware = [AuthMiddleware(auth=allowlist_check(allowed_ids))] if allowed_ids else []
+    server = FastMCP("second-brain-joplin", lifespan=lifespan, auth=auth, middleware=middleware)
     register_tools(server)
     server.custom_route("/healthz", methods=["GET"])(healthz)
     return server

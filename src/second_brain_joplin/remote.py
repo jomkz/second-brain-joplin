@@ -126,6 +126,11 @@ def validate(options: HttpOptions, *, auth_configured: bool) -> None:
     if auth_configured:
         if options.no_auth:
             raise ServeConfigError("--no-auth was given but sign-in is configured; drop one")
+        if not options.public_url:
+            raise ServeConfigError(
+                "sign-in needs the server's public URL (--public-url or SBJ_PUBLIC_URL): "
+                "GitHub and Claude are sent back to it"
+            )
         return
     if not options.no_auth:
         raise ServeConfigError(
