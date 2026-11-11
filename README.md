@@ -7,7 +7,7 @@ An MCP server that turns your [Joplin](https://joplinapp.org/) knowledge base in
 
 Inspired by [second-brain-mcp](https://github.com/noesskeetit/second-brain-mcp) (for Obsidian). This project covers the same use case for Joplin: your AI assistant reads, searches, and files notes directly, without leaving the tool you already use.
 
-> **Status:** Pre-alpha — the four read tools are live; note creation is still stubbed (human-gated write lands in v0.4). See the [roadmap](#roadmap) and open issues.
+> **Status:** Pre-alpha — the four read tools are live; note creation is still stubbed (human-gated write lands in v0.5). See the [roadmap](#roadmap) and open issues.
 
 ---
 
@@ -77,7 +77,7 @@ See [docs/install.md](docs/install.md) for per-client setup guides.
 > (`joplin_semantic_search` / `joplin_reindex`) landed in v0.3 and needs the
 > optional `[semantic]` extra (see [Semantic search](#semantic-search)).
 > `joplin_create` is still stubbed; the human-gated write flow is tracked in the
-> [v0.4 milestone](https://github.com/jomkz/second-brain-joplin/milestone/4).
+> [v0.5 milestone](https://github.com/jomkz/second-brain-joplin/milestone/4).
 
 ---
 
@@ -116,7 +116,7 @@ fresh incrementally — only notes changed since the last sync are re-embedded.
 | Storage | Plain `.md` files on disk | Joplin REST API |
 | Requires app running | No | Yes (Joplin + Web Clipper) |
 | Semantic search | Yes (bge-m3) | Yes (FastEmbed / bge-m3) |
-| Write support | Human-gated | Human-gated (v0.4) |
+| Write support | Human-gated | Human-gated (v0.5) |
 | Install | `uvx second-brain-mcp` | `uvx second-brain-joplin` |
 
 ---
@@ -134,14 +134,15 @@ The [PARA method](https://fortelabs.com/blog/para/) works well with Joplin. See 
 | [v0.1 — Bootstrap](https://github.com/jomkz/second-brain-joplin/milestone/1) | Repo, CI, package skeleton | Done |
 | [v0.2 — Core Read Tools](https://github.com/jomkz/second-brain-joplin/milestone/2) | All read MCP tools working | Done |
 | [v0.3 — Semantic Search](https://github.com/jomkz/second-brain-joplin/milestone/3) | Embedding index, semantic search | Done |
-| [v0.4 — Write Workflow](https://github.com/jomkz/second-brain-joplin/milestone/4) | Human-gated note creation | Planned |
+| [v0.4 — Remote Access](https://github.com/jomkz/second-brain-joplin/milestone/6) | Streamable HTTP, GitHub sign-in, Claude custom connector | In progress |
+| [v0.5 — Write Workflow](https://github.com/jomkz/second-brain-joplin/milestone/4) | Human-gated note creation | Planned |
 | [v1.0 — Publish](https://github.com/jomkz/second-brain-joplin/milestone/5) | PyPI, full docs, templates | Planned |
 
 ---
 
 ## Security & privacy
 
-This server keeps your notes local: it talks only to Joplin's Web Clipper REST API on `localhost` and runs on your own machine. Anything an MCP client can read, the connected AI can read — so apply least privilege and don't expose notebooks with credentials or other sensitive data. Note creation is planned as an explicit human-gated flow (v0.4); v0.1 does no silent writes.
+This server keeps your notes local: it talks only to Joplin's Web Clipper REST API on `localhost` and runs on your own machine. Anything an MCP client can read, the connected AI can read — so apply least privilege and don't expose notebooks with credentials or other sensitive data. Note creation is planned as an explicit human-gated flow (v0.5); v0.1 does no silent writes.
 
 Two caveats apply once you enable semantic search: it writes a **local index** (under your XDG data dir by default) that stores note text excerpts and titles alongside the embeddings, and it downloads the embedding model **once over the network** on the first reindex. Your note *content* is embedded locally and never leaves your machine. See [SECURITY.md](SECURITY.md) for details and how to report a vulnerability.
 

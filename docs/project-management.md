@@ -58,7 +58,8 @@ answer *when* a piece of work ships; there are deliberately no `phase-*` labels
 | **v0.1 — Bootstrap** | Repo scaffold, CI, package skeleton |
 | **v0.2 — Core Read Tools** | All read MCP tools working against Joplin |
 | **v0.3 — Semantic Search** | Embedding index and semantic search |
-| **v0.4 — Write Workflow** | Human-gated note creation |
+| **v0.4 — Remote Access** | Streamable HTTP with GitHub sign-in, deployed as a Claude custom connector |
+| **v0.5 — Write Workflow** | Human-gated note creation |
 | **v1.0 — Publish** | PyPI release, full docs, Joplin templates |
 
 ## Triage

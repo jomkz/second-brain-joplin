@@ -56,6 +56,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   single source of truth for ruff (no more version drift with the dev group).
 - **mypy now runs in `strict` mode over both `src` and `tests`** (previously a
   pragmatic baseline scoped to `src`); the CI type-check step is now `uv run mypy`.
+- **Roadmap:** remote access is now milestone v0.4; the human-gated write
+  workflow moves to v0.5.
 - **FastMCP 4.1** (from 3.4), on the MCP Python SDK 2: the current FastMCP line,
   which carries the OAuth and Host-check security fixes that remote access
   builds on. Tools and settings are unchanged; every locked dependency was

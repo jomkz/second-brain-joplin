@@ -21,7 +21,7 @@ public issue. We aim to acknowledge reports within a few days.
   people's private information. Apply least privilege to your notes.
 - **No silent writes.** The v0.2 tools are read-only; the semantic tools only
   read from Joplin and write to a local index (below). Note creation is planned
-  as an explicit **human-gated** flow in v0.4 — no writes to Joplin happen
+  as an explicit **human-gated** flow in v0.5 — no writes to Joplin happen
   without your confirmation.
 
 ### Semantic search
