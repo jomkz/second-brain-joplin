@@ -10,6 +10,9 @@ component:mcp:
       - any-glob-to-any-file:
           - src/second_brain_joplin/server.py
           - src/second_brain_joplin/cli.py
+          - src/second_brain_joplin/remote.py
+          - src/second_brain_joplin/auth.py
+          - src/second_brain_joplin/audit.py
           - src/second_brain_joplin/models.py
           - src/second_brain_joplin/tools/**
 
@@ -17,6 +20,7 @@ component:search:
   - changed-files:
       - any-glob-to-any-file:
           - src/second_brain_joplin/semantic/**
+          - src/second_brain_joplin/background.py
 
 component:docs:
   - changed-files:

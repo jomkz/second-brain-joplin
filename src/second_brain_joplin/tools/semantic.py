@@ -7,20 +7,26 @@ fine on a base install — invoking a semantic tool without the extra returns a
 clear ``ToolError``.
 """
 
+from typing import Annotated
+
 from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
+from pydantic import Field
 
 from ..context import app_context
 from ..errors import JoplinError, SemanticUnavailableError
-from ..models import ReindexResult, SemanticResult
+from ..models import MAX_SEARCH_LIMIT, ReindexResult, SemanticResult
+from .annotations import LOCAL_INDEX_WRITE, READ_ONLY
 
 
 def register(mcp: FastMCP) -> None:
     """Register the semantic-search tools on the given FastMCP server."""
 
-    @mcp.tool()
+    # Read-only toward Joplin; with auto-sync on it may refresh the local index
+    # first, which changes nothing a client can see except fresher results.
+    @mcp.tool(annotations=READ_ONLY)
     async def joplin_semantic_search(
-        ctx: Context, query: str, limit: int = 10
+        ctx: Context, query: str, limit: Annotated[int, Field(ge=1, le=MAX_SEARCH_LIMIT)] = 10
     ) -> list[SemanticResult]:
         """Find notes by meaning (semantic similarity), not just keywords."""
         try:
@@ -29,11 +35,18 @@ def register(mcp: FastMCP) -> None:
         except (SemanticUnavailableError, JoplinError) as exc:
             raise ToolError(str(exc)) from exc
 
-    @mcp.tool()
+    @mcp.tool(annotations=LOCAL_INDEX_WRITE)
     async def joplin_reindex(ctx: Context, full: bool = False) -> ReindexResult:
         """Sync the semantic index. ``full=True`` re-embeds every note from scratch."""
+        app = app_context(ctx)
+        if full and app.remote:
+            raise ToolError(
+                "A full rebuild can take longer than a remote tool call may run. Run "
+                "`second-brain-joplin reindex --full` on the server's machine instead; "
+                "incremental syncs (full=false) work here."
+            )
         try:
-            service = app_context(ctx).semantic()
+            service = app.semantic()
             stats = await service.sync(full=full)
         except (SemanticUnavailableError, JoplinError) as exc:
             raise ToolError(str(exc)) from exc

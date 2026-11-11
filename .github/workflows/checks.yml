@@ -57,6 +57,23 @@ jobs:
       - name: Run tests (with 90% coverage gate)
         run: uv run pytest --cov-fail-under=90 --tb=short
 
+  # HTTP mode runs on macOS in production (a user LaunchAgent beside Joplin
+  # Desktop), so the suite runs there too. A separate job keeps the Linux
+  # matrix's check names, which branch protection requires, unchanged.
+  test-macos:
+    name: Test (macOS, Python 3.13)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          python-version: "3.13"
+      - name: Install dependencies
+        run: uv sync --locked
+      - name: Run tests (with 90% coverage gate)
+        run: uv run pytest --cov-fail-under=90 --tb=short
+
   build:
     name: Build and validate package
     runs-on: ubuntu-latest

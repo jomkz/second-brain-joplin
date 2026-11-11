@@ -10,6 +10,14 @@ from pydantic import BaseModel
 
 EXCERPT_LENGTH = 200
 
+# Bounds on what one tool call may ask for. Claude caps a tool result near 150,000
+# characters, so a single page of a note stays well under that.
+MAX_SEARCH_LIMIT = 50
+MAX_RECENT_LIMIT = 100
+MAX_RECENT_DAYS = 3650
+READ_DEFAULT_CHARS = 50_000
+READ_MAX_CHARS = 100_000
+
 
 def epoch_ms_to_iso(value: int) -> str:
     """Convert a Joplin epoch-millisecond timestamp to an ISO-8601 string."""
@@ -25,7 +33,12 @@ def excerpt(body: str) -> str:
 
 
 class Note(BaseModel):
-    """A single Joplin note with its full body."""
+    """A Joplin note, or one page of a long one.
+
+    ``body`` holds the characters from ``offset``; ``total_chars`` is the whole
+    body's length, and ``next_offset`` is where the next page starts, or None
+    when this page reaches the end.
+    """
 
     id: str
     title: str
@@ -33,6 +46,9 @@ class Note(BaseModel):
     parent_id: str
     created_time: str
     updated_time: str
+    offset: int = 0
+    total_chars: int = 0
+    next_offset: int | None = None
 
 
 class RecentNote(BaseModel):

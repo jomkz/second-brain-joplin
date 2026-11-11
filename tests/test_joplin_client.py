@@ -129,6 +129,20 @@ async def test_connect_error_raises(client: JoplinClient) -> None:
 
 
 @respx.mock
-async def test_create_note_not_implemented(client: JoplinClient) -> None:
-    with pytest.raises(NotImplementedError):
-        await client.create_note("t", "b", "n")
+async def test_timeout_raises_connection_error_naming_the_wait(client: JoplinClient) -> None:
+    respx.get(f"{BASE_URL}/notes/x").mock(side_effect=httpx.ReadTimeout("slow"))
+    with pytest.raises(JoplinConnectionError, match="didn't answer .* within 10 seconds"):
+        await client.get_note("x")
+
+
+@respx.mock
+async def test_other_transport_errors_raise_connection_error(client: JoplinClient) -> None:
+    respx.get(f"{BASE_URL}/notes/x").mock(side_effect=httpx.RemoteProtocolError("reset"))
+    with pytest.raises(JoplinConnectionError, match="unreachable"):
+        await client.get_note("x")
+
+
+@respx.mock
+async def test_ping_timeout_is_down(client: JoplinClient) -> None:
+    respx.get(f"{BASE_URL}/ping").mock(side_effect=httpx.ConnectTimeout("slow"))
+    assert await client.ping() is False

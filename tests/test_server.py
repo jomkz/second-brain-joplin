@@ -12,7 +12,6 @@ EXPECTED_TOOLS = {
     "joplin_search",
     "joplin_read",
     "joplin_recent",
-    "joplin_create",
     "joplin_semantic_search",
     "joplin_reindex",
 }
@@ -23,7 +22,6 @@ REQUIRED_PARAMS = {
     "joplin_search": {"query"},
     "joplin_read": {"note_id"},
     "joplin_recent": set(),
-    "joplin_create": {"title", "body", "notebook_id"},
     "joplin_semantic_search": {"query"},
     "joplin_reindex": set(),
 }
@@ -55,13 +53,48 @@ async def test_joplin_recent_defaults_to_seven_days() -> None:
     assert days["default"] == 7
 
 
-async def test_joplin_create_is_still_stubbed() -> None:
+async def test_no_write_tool_is_registered() -> None:
+    """joplin_create returns with the human-gated flow (v0.5, #10), not before."""
     async with Client(mcp) as client:
-        result = await client.call_tool(
-            "joplin_create", {"title": "t", "body": "b", "notebook_id": "n"}
-        )
-    assert result.data["status"] == "not implemented"
-    assert result.data["tool"] == "joplin_create"
+        names = {tool.name for tool in await client.list_tools()}
+    assert "joplin_create" not in names
+
+
+# Tools that change something: tool name -> why. Every other tool must be read-only.
+LOCAL_WRITERS = {"joplin_reindex": "updates the local search index only"}
+
+
+async def test_every_tool_declares_its_side_effects() -> None:
+    """Walks the live tool list, so a new tool can't ship without annotations."""
+    async with Client(mcp) as client:
+        tools = await client.list_tools()
+    for tool in tools:
+        hints = tool.annotations
+        assert hints is not None, f"{tool.name} has no annotations"
+        assert hints.open_world_hint is False, tool.name
+        if tool.name in LOCAL_WRITERS:
+            assert hints.read_only_hint is False, tool.name
+            assert hints.destructive_hint is False, tool.name
+            assert hints.idempotent_hint is True, tool.name
+        else:
+            assert hints.read_only_hint is True, tool.name
+
+
+@pytest.mark.parametrize(
+    ("tool_name", "param", "low", "high"),
+    [
+        ("joplin_search", "limit", 1, 50),
+        ("joplin_semantic_search", "limit", 1, 50),
+        ("joplin_recent", "limit", 1, 100),
+        ("joplin_recent", "days", 1, 3650),
+        ("joplin_read", "max_chars", 1, 100_000),
+    ],
+)
+async def test_bounds_are_in_the_schema(tool_name: str, param: str, low: int, high: int) -> None:
+    async with Client(mcp) as client:
+        tools = {tool.name: tool for tool in await client.list_tools()}
+    schema = tools[tool_name].input_schema["properties"][param]
+    assert (schema["minimum"], schema["maximum"]) == (low, high)
 
 
 async def test_lifespan_yields_app_context_and_closes(monkeypatch: pytest.MonkeyPatch) -> None:

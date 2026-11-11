@@ -6,6 +6,70 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Streamable HTTP transport** (#51): `serve --transport http` runs the server
+  over FastMCP's streamable HTTP, stateless with plain JSON responses, bound to
+  `127.0.0.1:8775` by default, so a Claude custom connector can reach it through
+  a tunnel. Flags `--host`, `--port`, `--path`, `--public-url` and `--env-file`
+  fall back to `SBJ_*` variables; stdio stays the default. A strict Host check
+  answers unknown hosts with 421, and `/healthz` reports only whether the server
+  and Joplin are up. HTTP mode refuses to start without sign-in, except with
+  `--no-auth` on a loopback address for local testing
+  ([remote access guide](docs/remote-access.md)).
+- **GitHub sign-in with an id allowlist** (#52): HTTP mode signs in through
+  FastMCP's OAuth proxy with GitHub upstream, which gives Claude's connectors
+  the Dynamic Client Registration and Client ID Metadata Documents they expect.
+  Only the numeric GitHub user ids in `SBJ_ALLOWED_GITHUB_IDS` get in (anyone
+  else gets 401, and a second check runs per tool); scope `read:user`;
+  verification cached for five minutes; only claude.ai's callback may register
+  (`SBJ_OAUTH_REDIRECT_URIS` to change it); an explicit `SBJ_JWT_SIGNING_KEY` so
+  a client-secret rotation doesn't sign Claude out. Partial or malformed sign-in
+  settings are refused at start-up, naming what's wrong without printing values.
+- **Paged `joplin_read`** (#53): `offset` and `max_chars` (default 50,000, at
+  most 100,000 characters) with `total_chars` and `next_offset` in the result,
+  so a long note is read in pages instead of overflowing a client's result cap.
+- **Rate limit and safe logging** (#54): tool calls are limited per GitHub
+  account (`SBJ_RATE_LIMIT_PER_MINUTE`, default 60, bursts of half; listing
+  tools isn't counted), semantic searches run at most two at a time, and each
+  tool call logs one line (tool, caller id, outcome, duration) with no
+  arguments, results or credentials. httpx's request log, which would print the
+  Joplin token from the URL, and uvicorn's access log, which would print the
+  OAuth code, are off in HTTP mode.
+- **`reindex` subcommand and background sync** (#55):
+  `second-brain-joplin reindex [--full]` builds or syncs the semantic index from
+  the command line, with no time limit. In HTTP mode the server syncs the index
+  at start-up and then every `SBJ_SYNC_INTERVAL_MINUTES` (default 15, 0 = off),
+  never overlapping and carrying on after a failed run; and `joplin_reindex(full=True)`
+  is refused there with a pointer to the CLI, since a full rebuild can outlast a
+  remote tool call.
+- **Remote access guide** (#56): [docs/remote-access.md](docs/remote-access.md)
+  covers HTTP mode, sign-in, limits and logs, indexing, publishing the server
+  (Cloudflare Tunnel, Tailscale Funnel, a reverse proxy; a firewall rule for
+  Anthropic's ranges), running it as a launchd or systemd service, and adding
+  it to Claude.
+- CI runs the test suite on macOS too, as a separate job.
+- **Tool annotations** (#53): every tool declares its side effects (read-only;
+  `joplin_reindex` updates the local index only, idempotent, non-destructive).
+
+### Changed
+
+- **Bounded arguments** (#53): `limit` is 1–50 for the searches and 1–100 for
+  `joplin_recent`, `days` 1–3650; out-of-range values are refused before Joplin
+  is called.
+
+### Removed
+
+- The `joplin_create` stub (#53) is no longer registered on any transport; it
+  returns with the human-gated write workflow (v0.5, #10).
+
+### Fixed
+
+- The Joplin health check counts a timeout or dropped connection as "down"
+  instead of raising.
+- A Joplin timeout or dropped connection during a tool call is now a clear
+  "Joplin didn't answer" / "unreachable" tool error (#53), not a stack trace.
+
 ## [0.3.0] — Semantic Search
 
 Find notes by meaning, not only by keyword: an embedding index that persists and
