@@ -6,6 +6,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.0] — Semantic Search
+
+Find notes by meaning, not only by keyword: an embedding index that persists and
+syncs incrementally, behind optional extras so the base install stays light.
+Also the move to FastMCP 4.1, a stricter CI, and GitHub Releases on tags.
+
 ### Added
 
 - **Semantic search** (v0.3): two new MCP tools — `joplin_semantic_search` (find
@@ -117,6 +123,7 @@ Initial project skeleton — the MCP server starts and all tools are stubbed.
 - Documentation: install, notebook structure (PARA), project management,
   releasing runbook, security policy, and an inspiration/reference note.
 
-[Unreleased]: https://github.com/jomkz/second-brain-joplin/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/jomkz/second-brain-joplin/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/jomkz/second-brain-joplin/releases/tag/v0.1.0

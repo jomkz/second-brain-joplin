@@ -7,7 +7,7 @@ An MCP server that turns your [Joplin](https://joplinapp.org/) knowledge base in
 
 Inspired by [second-brain-mcp](https://github.com/noesskeetit/second-brain-mcp) (for Obsidian). This project covers the same use case for Joplin: your AI assistant reads, searches, and files notes directly, without leaving the tool you already use.
 
-> **Status:** Pre-alpha — the four read tools are live; note creation is still stubbed (human-gated write lands in v0.5). See the [roadmap](#roadmap) and open issues.
+> **Status:** Pre-alpha — the four read tools and semantic search are live; remote access is in progress (v0.4), and note creation is still stubbed (human-gated write lands in v0.5). See the [roadmap](#roadmap) and open issues.
 
 ---
 
@@ -142,7 +142,7 @@ The [PARA method](https://fortelabs.com/blog/para/) works well with Joplin. See 
 
 ## Security & privacy
 
-This server keeps your notes local: it talks only to Joplin's Web Clipper REST API on `localhost` and runs on your own machine. Anything an MCP client can read, the connected AI can read — so apply least privilege and don't expose notebooks with credentials or other sensitive data. Note creation is planned as an explicit human-gated flow (v0.5); v0.1 does no silent writes.
+This server keeps your notes local: it talks only to Joplin's Web Clipper REST API on `localhost` and runs on your own machine. Anything an MCP client can read, the connected AI can read — so apply least privilege and don't expose notebooks with credentials or other sensitive data. Note creation is planned as an explicit human-gated flow (v0.5); until then the server does no silent writes.
 
 Two caveats apply once you enable semantic search: it writes a **local index** (under your XDG data dir by default) that stores note text excerpts and titles alongside the embeddings, and it downloads the embedding model **once over the network** on the first reindex. Your note *content* is embedded locally and never leaves your machine. See [SECURITY.md](SECURITY.md) for details and how to report a vulnerability.
 
