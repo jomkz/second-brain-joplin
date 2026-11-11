@@ -24,7 +24,7 @@ Syed Ali Turab, Medium (Jun 2026).
 - **Least privilege for your notes.** Think before pointing an AI at a store;
   keep anything sensitive out of what you expose. This informs our
   [security & privacy](../../SECURITY.md) stance and the human-gated write flow
-  planned for v0.4.
+  planned for v0.5.
 
 ## Related project
 

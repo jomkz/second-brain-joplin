@@ -43,6 +43,17 @@ a release is safe.
 3. The workflow runs the full `checks` suite (lint, type-check, tests, and
    `uv build` + `twine check`), then — only if everything is green — publishes
    the tested sdist + wheel to PyPI.
+4. Once PyPI has it, the workflow creates the **GitHub Release** for the tag with
+   [`scripts/github-release.sh`](../scripts/github-release.sh): the title and
+   notes come from the version's `## [<version>]` section of `CHANGELOG.md`
+   (the run fails if that section is missing or empty), the sdist + wheel are
+   attached, and a pre-release version (`0.4.0rc1`, `0.4.0b2`, `0.4.0-rc.1`) is
+   marked as a pre-release. Re-running updates the existing release instead of
+   failing.
+
+To create or refresh the release for an older tag by hand (for example
+`v0.2.0`, which predates this step), run the script from a checkout of `main`
+with `gh` logged in: `scripts/github-release.sh v0.2.0`.
 
 ## Verify
 

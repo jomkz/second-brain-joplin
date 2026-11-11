@@ -6,6 +6,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.0] — Semantic Search
+
+Find notes by meaning, not only by keyword: an embedding index that persists and
+syncs incrementally, behind optional extras so the base install stays light.
+Also the move to FastMCP 4.1, a stricter CI, and GitHub Releases on tags.
+
 ### Added
 
 - **Semantic search** (v0.3): two new MCP tools — `joplin_semantic_search` (find
@@ -31,6 +37,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   workflow-syntax regressions locally (and in CI via `pre-commit run --all-files`).
 - Extra pre-commit hygiene hooks (end-of-file, trailing-whitespace, YAML/TOML
   checks).
+- **GitHub Releases** (#24): a version tag now also creates a GitHub Release,
+  after the PyPI publish, with notes from that version's CHANGELOG section and
+  the tested sdist and wheel attached. Pre-release versions are marked as such,
+  and re-running updates the release in place (`scripts/github-release.sh`,
+  which also backfills older tags).
 
 ### Changed
 
@@ -51,6 +62,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   single source of truth for ruff (no more version drift with the dev group).
 - **mypy now runs in `strict` mode over both `src` and `tests`** (previously a
   pragmatic baseline scoped to `src`); the CI type-check step is now `uv run mypy`.
+- **Roadmap:** remote access is now milestone v0.4; the human-gated write
+  workflow moves to v0.5.
+- **FastMCP 4.1** (from 3.4), on the MCP Python SDK 2: the current FastMCP line,
+  which carries the OAuth and Host-check security fixes that remote access
+  builds on. Tools and settings are unchanged; every locked dependency was
+  refreshed once.
 
 ### Fixed
 
@@ -106,6 +123,7 @@ Initial project skeleton — the MCP server starts and all tools are stubbed.
 - Documentation: install, notebook structure (PARA), project management,
   releasing runbook, security policy, and an inspiration/reference note.
 
-[Unreleased]: https://github.com/jomkz/second-brain-joplin/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/jomkz/second-brain-joplin/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/jomkz/second-brain-joplin/releases/tag/v0.1.0

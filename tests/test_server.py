@@ -40,7 +40,7 @@ async def test_tool_input_schema_exposes_required_params(tool_name: str) -> None
     async with Client(mcp) as client:
         tools = {tool.name: tool for tool in await client.list_tools()}
 
-    schema = tools[tool_name].inputSchema
+    schema = tools[tool_name].input_schema
     properties = set(schema.get("properties", {}))
     assert REQUIRED_PARAMS[tool_name] <= properties
     assert "ctx" not in properties
@@ -51,7 +51,7 @@ async def test_tool_input_schema_exposes_required_params(tool_name: str) -> None
 async def test_joplin_recent_defaults_to_seven_days() -> None:
     async with Client(mcp) as client:
         tools = {tool.name: tool for tool in await client.list_tools()}
-    days = tools["joplin_recent"].inputSchema["properties"]["days"]
+    days = tools["joplin_recent"].input_schema["properties"]["days"]
     assert days["default"] == 7
 
 

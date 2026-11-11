@@ -21,7 +21,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-    "fastmcp>=3,<4",
+    "fastmcp>=4.1,<5",
     "httpx>=0.27",
     "pydantic>=2",
     "python-dotenv>=1.0",
@@ -75,6 +75,7 @@ select = ["E", "F", "I", "UP"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 # The 90% coverage gate is enforced in CI via `--cov-fail-under=90` (see
 # .github/workflows/checks.yml). It is intentionally NOT in addopts so that
 # running a subset of tests locally (e.g. `pytest tests/test_cli.py`) does not
