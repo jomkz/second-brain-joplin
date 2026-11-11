@@ -6,6 +6,23 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Streamable HTTP transport** (#51): `serve --transport http` runs the server
+  over FastMCP's streamable HTTP, stateless with plain JSON responses, bound to
+  `127.0.0.1:8775` by default, so a Claude custom connector can reach it through
+  a tunnel. Flags `--host`, `--port`, `--path`, `--public-url` and `--env-file`
+  fall back to `SBJ_*` variables; stdio stays the default. A strict Host check
+  answers unknown hosts with 421, and `/healthz` reports only whether the server
+  and Joplin are up. HTTP mode refuses to start without sign-in, except with
+  `--no-auth` on a loopback address for local testing
+  ([remote access guide](docs/remote-access.md)).
+
+### Fixed
+
+- The Joplin health check counts a timeout or dropped connection as "down"
+  instead of raising.
+
 ## [0.3.0] — Semantic Search
 
 Find notes by meaning, not only by keyword: an embedding index that persists and

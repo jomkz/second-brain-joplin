@@ -59,6 +59,12 @@ claude mcp add -s user second-brain-joplin \
 
 See [docs/install.md](docs/install.md) for per-client setup guides.
 
+### Remote: a Claude custom connector
+
+`serve --transport http` runs the server over streamable HTTP so Claude's custom
+connectors (claude.ai, the Claude apps, Cowork) can reach it through a tunnel. See
+[docs/remote-access.md](docs/remote-access.md).
+
 ---
 
 ## MCP Tools

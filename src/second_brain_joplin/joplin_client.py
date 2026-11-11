@@ -45,7 +45,7 @@ class JoplinClient:
         """Return True if the Joplin API is reachable and responding."""
         try:
             response = await self._client.get("/ping")
-        except httpx.ConnectError:
+        except httpx.TransportError:  # refused, timed out, or the connection dropped
             return False
         return response.text.strip() == "JoplinClipperServer"
 
