@@ -68,7 +68,13 @@ class JoplinClient:
     async def _get(self, path: str, params: JsonDict | None = None) -> httpx.Response:
         try:
             response = await self._client.get(path, params=params)
-        except httpx.ConnectError as exc:
+        except httpx.TimeoutException as exc:
+            raise JoplinConnectionError(
+                f"Joplin didn't answer at {self.base_url} within "
+                f"{self._settings.request_timeout:g} seconds — is Joplin Desktop running "
+                "and responsive?"
+            ) from exc
+        except httpx.TransportError as exc:  # refused, reset, DNS, protocol errors
             raise JoplinConnectionError(
                 f"Joplin is unreachable at {self.base_url} — is Joplin Desktop running "
                 "with the Web Clipper service enabled?"
@@ -139,7 +145,3 @@ class JoplinClient:
             },
             max_items=limit,
         )
-
-    async def create_note(self, title: str, body: str, notebook_id: str) -> JsonDict:
-        # Real implementation lands with the human-gated write flow (issue #10).
-        raise NotImplementedError

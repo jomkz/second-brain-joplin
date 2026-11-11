@@ -7,7 +7,7 @@ An MCP server that turns your [Joplin](https://joplinapp.org/) knowledge base in
 
 Inspired by [second-brain-mcp](https://github.com/noesskeetit/second-brain-mcp) (for Obsidian). This project covers the same use case for Joplin: your AI assistant reads, searches, and files notes directly, without leaving the tool you already use.
 
-> **Status:** Pre-alpha — the four read tools and semantic search are live; remote access is in progress (v0.4), and note creation is still stubbed (human-gated write lands in v0.5). See the [roadmap](#roadmap) and open issues.
+> **Status:** Pre-alpha — the four read tools and semantic search are live; remote access is in progress (v0.4), and note creation (human-gated) lands in v0.5. See the [roadmap](#roadmap) and open issues.
 
 ---
 
@@ -72,17 +72,21 @@ connectors (claude.ai, the Claude apps, Cowork) can reach it through a tunnel. S
 | Tool | Description | Writes? |
 |---|---|---|
 | `joplin_overview` | List all notebooks with note counts | No |
-| `joplin_search` | Keyword search across all notes | No |
-| `joplin_read` | Read a note by ID | No |
-| `joplin_recent` | Notes modified in the last N days | No |
-| `joplin_semantic_search` | Find notes by meaning (embeddings) | No |
-| `joplin_reindex` | Build/refresh the semantic index | No |
-| `joplin_create` | Create a note (human-gated) | Yes |
+| `joplin_search` | Keyword search across all notes (`limit` 1–50) | No |
+| `joplin_read` | Read a note by ID, a page at a time (`offset`, `max_chars` up to 100,000) | No |
+| `joplin_recent` | Notes modified in the last N days (`days` 1–3650, `limit` 1–100) | No |
+| `joplin_semantic_search` | Find notes by meaning (embeddings; `limit` 1–50) | No |
+| `joplin_reindex` | Build/refresh the semantic index | The local index only, never Joplin |
+
+Every tool carries MCP annotations (read-only, or for `joplin_reindex` local and
+non-destructive), so clients can tell what each one does. Note creation
+(`joplin_create`) returns with the human-gated write workflow in v0.5; until then
+no write tool is registered.
 
 > The read tools query a running Joplin instance as of v0.2. Semantic search
 > (`joplin_semantic_search` / `joplin_reindex`) landed in v0.3 and needs the
 > optional `[semantic]` extra (see [Semantic search](#semantic-search)).
-> `joplin_create` is still stubbed; the human-gated write flow is tracked in the
+> The human-gated write flow is tracked in the
 > [v0.5 milestone](https://github.com/jomkz/second-brain-joplin/milestone/4).
 
 ---

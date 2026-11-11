@@ -134,3 +134,19 @@ To cut access at once, do any one of:
 - revoke the grant at GitHub: Settings → Applications → Authorized OAuth Apps;
 - rotate `SBJ_JWT_SIGNING_KEY` and restart: every issued token stops working;
 - stop the tunnel, or the server.
+
+## What a remote client can do
+
+Every tool is read-only toward Joplin, the same over HTTP as over stdio:
+
+- **No write tool is registered.** Note creation returns with the human-gated
+  write workflow (v0.5). In Claude's connector settings you can still set any
+  tool to "always ask".
+- **Annotations** mark every tool read-only, except `joplin_reindex`, which
+  updates the local search index only (never Joplin, never destructive).
+- **Bounded arguments:** `limit` 1–50 for the searches, 1–100 for
+  `joplin_recent`, `days` 1–3650. Anything outside is refused before Joplin is
+  called.
+- **Long notes are read in pages.** Claude caps a tool result near 150,000
+  characters, so `joplin_read` returns at most `max_chars` (default 50,000, up to
+  100,000) from `offset`, with `total_chars` and `next_offset` for the rest.

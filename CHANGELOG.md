@@ -26,11 +26,29 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (`SBJ_OAUTH_REDIRECT_URIS` to change it); an explicit `SBJ_JWT_SIGNING_KEY` so
   a client-secret rotation doesn't sign Claude out. Partial or malformed sign-in
   settings are refused at start-up, naming what's wrong without printing values.
+- **Paged `joplin_read`** (#53): `offset` and `max_chars` (default 50,000, at
+  most 100,000 characters) with `total_chars` and `next_offset` in the result,
+  so a long note is read in pages instead of overflowing a client's result cap.
+- **Tool annotations** (#53): every tool declares its side effects (read-only;
+  `joplin_reindex` updates the local index only, idempotent, non-destructive).
+
+### Changed
+
+- **Bounded arguments** (#53): `limit` is 1–50 for the searches and 1–100 for
+  `joplin_recent`, `days` 1–3650; out-of-range values are refused before Joplin
+  is called.
+
+### Removed
+
+- The `joplin_create` stub (#53) is no longer registered on any transport; it
+  returns with the human-gated write workflow (v0.5, #10).
 
 ### Fixed
 
 - The Joplin health check counts a timeout or dropped connection as "down"
   instead of raising.
+- A Joplin timeout or dropped connection during a tool call is now a clear
+  "Joplin didn't answer" / "unreachable" tool error (#53), not a stack trace.
 
 ## [0.3.0] — Semantic Search
 

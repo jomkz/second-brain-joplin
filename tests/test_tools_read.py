@@ -153,3 +153,113 @@ async def test_tool_surfaces_connection_error() -> None:
     async with Client(mcp) as client:
         with pytest.raises(ToolError):
             await client.call_tool("joplin_overview", {})
+
+
+def _mock_note(body: str) -> None:
+    respx.get(f"{BASE_URL}/notes/long").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "id": "long",
+                "title": "Long",
+                "body": body,
+                "parent_id": "root",
+                "created_time": 0,
+                "updated_time": 0,
+            },
+        )
+    )
+
+
+async def _read(**args: Any) -> Any:
+    async with Client(mcp) as client:
+        result = await client.call_tool("joplin_read", {"note_id": "long", **args})
+    return result.data
+
+
+@respx.mock
+async def test_read_short_note_is_one_page() -> None:
+    _mock_note("hello")
+    note = await _read()
+    assert (_attr(note, "body"), _attr(note, "total_chars")) == ("hello", 5)
+    assert _attr(note, "offset") == 0
+    assert _attr(note, "next_offset") is None
+
+
+@respx.mock
+async def test_read_pages_through_a_long_note() -> None:
+    body = "".join(str(i % 10) for i in range(25))
+    _mock_note(body)
+    pages, offset = [], 0
+    while offset is not None:
+        note = await _read(offset=offset, max_chars=10)
+        pages.append(_attr(note, "body"))
+        assert _attr(note, "total_chars") == 25
+        offset = _attr(note, "next_offset")
+    assert pages == [body[0:10], body[10:20], body[20:25]]
+    assert "".join(pages) == body
+
+
+@respx.mock
+async def test_read_page_ending_exactly_at_the_end_has_no_next() -> None:
+    _mock_note("x" * 20)
+    note = await _read(offset=10, max_chars=10)
+    assert _attr(note, "body") == "x" * 10
+    assert _attr(note, "next_offset") is None
+
+
+@respx.mock
+async def test_read_past_the_end_is_empty_not_an_error() -> None:
+    _mock_note("short")
+    note = await _read(offset=100)
+    assert (_attr(note, "body"), _attr(note, "total_chars")) == ("", 5)
+    assert _attr(note, "next_offset") is None
+
+
+@respx.mock
+async def test_read_counts_characters_not_bytes() -> None:
+    body = "😀é漢" * 4  # 12 characters, 36 bytes in UTF-8
+    _mock_note(body)
+    first = await _read(max_chars=5)
+    second = await _read(offset=5, max_chars=100)
+    assert _attr(first, "total_chars") == 12
+    assert _attr(first, "body") + _attr(second, "body") == body
+
+
+@pytest.mark.parametrize(
+    ("tool", "args"),
+    [
+        ("joplin_search", {"query": "q", "limit": 0}),
+        ("joplin_search", {"query": "q", "limit": -1}),
+        ("joplin_search", {"query": "q", "limit": 51}),
+        ("joplin_search", {"query": "q", "limit": 10**9}),
+        ("joplin_recent", {"limit": 0}),
+        ("joplin_recent", {"limit": 101}),
+        ("joplin_recent", {"days": 0}),
+        ("joplin_recent", {"days": 3651}),
+        ("joplin_read", {"note_id": "x", "offset": -1}),
+        ("joplin_read", {"note_id": "x", "max_chars": 0}),
+        ("joplin_read", {"note_id": "x", "max_chars": 100_001}),
+        ("joplin_semantic_search", {"query": "q", "limit": 0}),
+        ("joplin_semantic_search", {"query": "q", "limit": 51}),
+    ],
+)
+async def test_out_of_range_arguments_are_refused_before_joplin_is_called(
+    tool: str, args: dict[str, Any]
+) -> None:
+    with respx.mock(assert_all_called=False) as router:
+        route = router.route(host="localhost")
+        async with Client(mcp) as client:
+            with pytest.raises(ToolError):
+                await client.call_tool(tool, args)
+    assert not route.called
+
+
+@respx.mock
+async def test_limits_at_the_ceiling_are_accepted() -> None:
+    respx.get(f"{BASE_URL}/search").mock(
+        return_value=httpx.Response(200, json={"items": [], "has_more": False})
+    )
+    async with Client(mcp) as client:
+        result = await client.call_tool("joplin_search", {"query": "q", "limit": 50})
+    assert result.data == []
