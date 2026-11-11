@@ -43,6 +43,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   never overlapping and carrying on after a failed run; and `joplin_reindex(full=True)`
   is refused there with a pointer to the CLI, since a full rebuild can outlast a
   remote tool call.
+- **Remote access guide** (#56): [docs/remote-access.md](docs/remote-access.md)
+  covers HTTP mode, sign-in, limits and logs, indexing, publishing the server
+  (Cloudflare Tunnel, Tailscale Funnel, a reverse proxy; a firewall rule for
+  Anthropic's ranges), running it as a launchd or systemd service, and adding
+  it to Claude.
+- CI runs the test suite on macOS too, as a separate job.
 - **Tool annotations** (#53): every tool declares its side effects (read-only;
   `joplin_reindex` updates the local index only, idempotent, non-destructive).
 

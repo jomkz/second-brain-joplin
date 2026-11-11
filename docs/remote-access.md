@@ -124,7 +124,10 @@ missing (never a value).
   store on disk (under your user data directory), keyed from
   `SBJ_JWT_SIGNING_KEY`. Rotating the GitHub client secret changes nothing for
   Claude; rotating the signing key signs every client out.
-- **Consent page:** after GitHub, the server asks you to approve the client once.
+- **Consent page:** after GitHub, the server asks you to approve the client, every
+  time. **Approve only a sign-in you started yourself.** claude.ai's callback is
+  the same for every claude.ai user, so an authorize link someone else sends you
+  could connect your notes to *their* Claude account if you approve it.
 
 ### Turning access off
 
@@ -186,6 +189,96 @@ indexing stays out of the request path:
   search isn't installed the loop stops quietly.
 - **Over HTTP**, `joplin_reindex(full=True)` is refused with a pointer to the
   command above; incremental syncs (`full=false`) still work.
+
+## Publishing it
+
+The server only listens on loopback; something with TLS has to publish it at
+the public URL. Three ways that work:
+
+- **Cloudflare Tunnel** (recommended). `cloudflared` on the server's machine
+  dials out, so no port is opened. Point a public hostname at
+  `http://127.0.0.1:8775`, and run `cloudflared tunnel run --token-file <file>`
+  as a service. Don't put Cloudflare Access in front: Claude is a machine client
+  and can't complete its login. Don't use Quick Tunnels: their hostname changes
+  on every start. On the Free plan, turn **Bot Fight Mode off** for the zone: it
+  challenges automated clients, which Claude's calls are, and no rule can exempt
+  them.
+- **Tailscale Funnel**: `tailscale funnel --bg 8775` publishes it at your
+  machine's `ts.net` name with a certificate, no domain needed. No firewall in
+  front, and Funnel is beta.
+- **A reverse proxy** (Caddy, nginx) on a host with a public address and TLS.
+
+### A firewall in front (recommended)
+
+Claude's requests come from Anthropic's published outbound ranges,
+`160.79.104.0/21` and `153.61.208.0/20`
+([Anthropic's IP addresses](https://platform.claude.com/docs/en/api/ip-addresses)).
+Only three paths have to be reachable from anywhere, because your own browser
+opens them while you sign in: `/authorize`, `/auth/callback` and `/consent`.
+A rule that blocks everything else unless it comes from those two ranges keeps
+`/mcp`, `/token`, `/register`, `/.well-known/*` and `/healthz` closed to the rest
+of the internet. As a Cloudflare custom rule (action Block):
+
+```
+(http.host eq "joplin.example.com")
+and not (http.request.uri.path in {"/authorize" "/auth/callback" "/consent"})
+and not (ip.src in {160.79.104.0/21 153.61.208.0/20})
+```
+
+### Keeping it running
+
+Run it under your service manager, with the secrets in a mode-600 env file.
+A user LaunchAgent on macOS (`~/Library/LaunchAgents/example.second-brain-joplin.plist`;
+Joplin Desktop runs in your login session, so a per-user agent is the right fit):
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>example.second-brain-joplin</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/you/.local/bin/second-brain-joplin</string>
+    <string>serve</string>
+    <string>--transport</string><string>http</string>
+    <string>--env-file</string><string>/Users/you/.config/second-brain-joplin/serve.env</string>
+  </array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardErrorPath</key><string>/Users/you/Library/Logs/second-brain-joplin.log</string>
+</dict>
+</plist>
+```
+
+Or a systemd user unit on Linux (`~/.config/systemd/user/second-brain-joplin.service`):
+
+```ini
+[Unit]
+Description=second-brain-joplin MCP server (HTTP mode)
+
+[Service]
+ExecStart=%h/.local/bin/second-brain-joplin serve --transport http --env-file %h/.config/second-brain-joplin/serve.env
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+```
+
+Install the command with `uv tool install "second-brain-joplin[semantic]"`, and
+build the index once with `second-brain-joplin reindex` before the first start.
+
+## Adding it to Claude
+
+1. On claude.ai: **Customize → Connectors → Add custom connector**.
+2. Name it, and enter the URL: your public URL plus the path,
+   `https://joplin.example.com/mcp`.
+3. Claude finds the sign-in on its own. Sign in with GitHub, then approve the
+   consent page.
+4. Optional: in the connector's tool settings, set any tool to always ask.
+
+Connectors you add on claude.ai also work in Claude Desktop, the mobile apps and
+Cowork. Free accounts can add one custom connector.
 
 ## Environment variables at a glance
 

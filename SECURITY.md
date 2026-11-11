@@ -27,7 +27,9 @@ public issue. We aim to acknowledge reports within a few days.
     (`SBJ_ALLOWED_GITHUB_IDS`): any other account gets 401 before a tool runs,
     and a second check runs again for every tool. HTTP mode refuses to start
     without sign-in, except `--no-auth` on loopback for a local test.
-  - Only claude.ai's OAuth callback may register as a client by default.
+  - Only claude.ai's OAuth callback may register as a client by default. That
+    callback is shared by every claude.ai user, so approve the server's consent
+    page only for a sign-in you started yourself.
   - A strict Host check (421 for unknown hosts) against DNS rebinding.
   - A rate limit per GitHub account, and a cap on concurrent semantic searches.
   - Logs record each tool call's name, caller id, outcome and duration, never
