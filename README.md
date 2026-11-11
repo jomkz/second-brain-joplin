@@ -7,7 +7,7 @@ An MCP server that turns your [Joplin](https://joplinapp.org/) knowledge base in
 
 Inspired by [second-brain-mcp](https://github.com/noesskeetit/second-brain-mcp) (for Obsidian). This project covers the same use case for Joplin: your AI assistant reads, searches, and files notes directly, without leaving the tool you already use.
 
-> **Status:** Pre-alpha — the four read tools and semantic search are live; remote access is in progress (v0.4), and note creation (human-gated) lands in v0.5. See the [roadmap](#roadmap) and open issues.
+> **Status:** Pre-alpha — the read tools, semantic search and remote access (a Claude custom connector, [docs/remote-access.md](docs/remote-access.md)) are live, and note creation (human-gated) lands in v0.5. See the [roadmap](#roadmap) and open issues.
 
 ---
 
@@ -144,7 +144,7 @@ The [PARA method](https://fortelabs.com/blog/para/) works well with Joplin. See 
 | [v0.1 — Bootstrap](https://github.com/jomkz/second-brain-joplin/milestone/1) | Repo, CI, package skeleton | Done |
 | [v0.2 — Core Read Tools](https://github.com/jomkz/second-brain-joplin/milestone/2) | All read MCP tools working | Done |
 | [v0.3 — Semantic Search](https://github.com/jomkz/second-brain-joplin/milestone/3) | Embedding index, semantic search | Done |
-| [v0.4 — Remote Access](https://github.com/jomkz/second-brain-joplin/milestone/6) | Streamable HTTP, GitHub sign-in, Claude custom connector | In progress |
+| [v0.4 — Remote Access](https://github.com/jomkz/second-brain-joplin/milestone/6) | Streamable HTTP, GitHub sign-in, Claude custom connector | Done |
 | [v0.5 — Write Workflow](https://github.com/jomkz/second-brain-joplin/milestone/4) | Human-gated note creation | Planned |
 | [v1.0 — Publish](https://github.com/jomkz/second-brain-joplin/milestone/5) | PyPI, full docs, templates | Planned |
 

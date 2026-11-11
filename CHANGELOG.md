@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.0] — Remote Access
+
+Use your notes from Claude anywhere: `serve --transport http` makes the server a
+Claude custom connector (claude.ai, Claude Desktop, the mobile apps, Cowork),
+behind GitHub sign-in limited to the GitHub accounts you list, with a read-only,
+bounded tool surface, per-caller rate limits, logs that hold no note content or
+credentials, and indexing kept out of the request path. stdio use is unchanged.
+Verified end to end from claude.ai and a Claude Duet task through a Cloudflare
+Tunnel ([remote access guide](docs/remote-access.md)).
+
 ### Added
 
 - **Streamable HTTP transport** (#51): `serve --transport http` runs the server
@@ -187,7 +197,8 @@ Initial project skeleton — the MCP server starts and all tools are stubbed.
 - Documentation: install, notebook structure (PARA), project management,
   releasing runbook, security policy, and an inspiration/reference note.
 
-[Unreleased]: https://github.com/jomkz/second-brain-joplin/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/jomkz/second-brain-joplin/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/jomkz/second-brain-joplin/releases/tag/v0.1.0
