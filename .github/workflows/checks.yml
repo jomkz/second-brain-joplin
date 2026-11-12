@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11", "3.12", "3.13"]
+        python-version: ["3.11", "3.12", "3.13", "3.14", "3.15"]
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
@@ -58,11 +58,22 @@ jobs:
         run: uv run pytest --cov-fail-under=90 --tb=short
 
   # HTTP mode runs on macOS in production (a user LaunchAgent beside Joplin
-  # Desktop), so the suite runs there too. A separate job keeps the Linux
-  # matrix's check names, which branch protection requires, unchanged.
-  test-macos:
-    name: Test (macOS, Python 3.13)
-    runs-on: macos-latest
+  # Desktop), and the package is installed on Windows too, so both get the test
+  # suite and then the smoke test of the wheel the build job made (see `build`).
+  # One job per system does both, because macOS runners are scarce: a second
+  # macOS job waits in the queue a second time. A separate job from the Linux
+  # matrix keeps that matrix's check names, which branch protection requires,
+  # unchanged.
+  test-os:
+    name: Test (${{ matrix.name }}, Python 3.13)
+    needs: build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-latest, name: macOS }
+          - { os: windows-latest, name: Windows }
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
@@ -73,7 +84,20 @@ jobs:
         run: uv sync --locked
       - name: Run tests (with 90% coverage gate)
         run: uv run pytest --cov-fail-under=90 --tb=short
+      - name: Download the built wheel
+        uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+      - name: Smoke-test the built wheel (uvx, then MCP over stdio and HTTP)
+        shell: bash
+        run: uv run scripts/smoke.py --from ./dist/*.whl
 
+  # Builds the package, and starts the wheel the way a user starts it (uvx) and
+  # talks MCP to it on both transports (scripts/smoke.py). That needs no Joplin:
+  # the server is pointed at a closed port. Dependencies resolve fresh from PyPI,
+  # as they do for a user. The same wheel gets the same smoke test on macOS and
+  # Windows in `test-os`.
   build:
     name: Build and validate package
     runs-on: ubuntu-latest
@@ -82,12 +106,13 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
+          python-version: "3.13"
       - name: Build sdist and wheel
         run: uv build
       - name: Validate metadata
         run: uvx twine check dist/*
-      - name: Smoke-test the built wheel
-        run: uvx --from ./dist/*.whl second-brain-joplin --version
+      - name: Smoke-test the built wheel (uvx, then MCP over stdio and HTTP)
+        run: uv run scripts/smoke.py --from ./dist/*.whl
       - name: Upload distributions
         uses: actions/upload-artifact@v7
         with:

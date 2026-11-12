@@ -97,13 +97,15 @@ def test_auto_sync_bool_parsing(monkeypatch: pytest.MonkeyPatch, raw: str, expec
 
 def test_default_index_dir_uses_xdg_when_set(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("XDG_DATA_HOME", "/xdg/data")
-    assert default_index_dir() == "/xdg/data/second-brain-joplin/index"
+    # Compared as paths: the separators are the platform's (backslashes on Windows).
+    assert Path(default_index_dir()) == Path("/xdg/data/second-brain-joplin/index")
 
 
 def test_default_index_dir_falls_back_to_home(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("XDG_DATA_HOME", raising=False)
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: Path("/home/tester")))
-    assert default_index_dir() == "/home/tester/.local/share/second-brain-joplin/index"
+    expected = Path("/home/tester/.local/share/second-brain-joplin/index")
+    assert Path(default_index_dir()) == expected
 
 
 def test_from_env_reads_the_notebook_filter(monkeypatch: pytest.MonkeyPatch) -> None:

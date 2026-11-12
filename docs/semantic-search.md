@@ -9,15 +9,15 @@ complements — it does not replace — the keyword `joplin_search`.
 
 | Tool | What it does |
 |---|---|
-| `joplin_semantic_search(query, limit=10)` | Returns the `limit` most similar notes (`id`, `title`, `excerpt`, `score`). Runs a quick incremental sync first (unless disabled). |
+| `joplin_semantic_search(query, limit=10)` | Returns the `limit` most similar notes (`id`, `title`, `excerpt`, `score`, `chunk_index`). Runs a quick incremental sync first (unless disabled). |
 | `joplin_reindex(full=False)` | Syncs the index. `full=True` drops and re-embeds everything; otherwise only notes changed since the last sync are re-embedded. |
 
 Build the initial index once after enabling the feature (this downloads the
 embedding model the first time). From the command line, with no time limit:
 
 ```bash
-uvx --from "second-brain-joplin[semantic]" second-brain-joplin reindex        # incremental
-uvx --from "second-brain-joplin[semantic]" second-brain-joplin reindex --full # from scratch
+uvx --python 3.13 --from "second-brain-joplin[semantic]" second-brain-joplin reindex        # incremental
+uvx --python 3.13 --from "second-brain-joplin[semantic]" second-brain-joplin reindex --full # from scratch
 ```
 
 or call `joplin_reindex` from your MCP client. Subsequent searches keep the index
@@ -31,8 +31,14 @@ command above on the server's machine (see [remote-access.md](remote-access.md))
 Semantic search is an optional extra so the base install stays light:
 
 ```bash
-uvx --from "second-brain-joplin[semantic]" second-brain-joplin serve
+uvx --python 3.13 --from "second-brain-joplin[semantic]" second-brain-joplin serve
 ```
+
+The semantic stack runs on Python 3.11 to 3.14: its embedding runtime has no
+build for Python 3.15 yet. `--python 3.13` makes `uvx` fetch a Python that works
+whatever your computer's own is; without it, on Python 3.15, the installer
+quietly falls back to a release that has no semantic search
+([Which Python](install.md#which-python)).
 
 The default stack is **FastEmbed** (ONNX, no PyTorch) + **`sqlite-vec`** (a
 single-file index). To use other backends, install the matching extra and set
@@ -55,7 +61,8 @@ the env var:
 | `SBJ_SEMANTIC_AUTO_SYNC` | `true` | re-sync before each search |
 
 Changing the embedding model (or its dimensionality) is detected automatically:
-the next sync rebuilds the index from scratch.
+the next sync rebuilds the index from scratch. All settings are listed in
+[configuration.md](configuration.md#semantic-search).
 
 ## How it works
 

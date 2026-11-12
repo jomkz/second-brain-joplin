@@ -432,9 +432,11 @@ Restart=on-failure
 WantedBy=default.target
 ```
 
-Install the command with `uv tool install "second-brain-joplin[semantic]"`, and
-build the index once with `second-brain-joplin reindex --env-file <that env file>`
-before the first start.
+Install the command with
+`uv tool install --python 3.13 "second-brain-joplin[semantic]"` (the semantic
+stack has no build for Python 3.15 yet: [Which Python](install.md#which-python)),
+and build the index once with
+`second-brain-joplin reindex --env-file <that env file>` before the first start.
 
 ## Adding it to Claude
 
@@ -466,4 +468,5 @@ Cowork. Free accounts can add one custom connector.
 | `SBJ_SYNC_INTERVAL_MINUTES` | `15` | Background index sync; 0 = off |
 
 Plus the usual `JOPLIN_API_TOKEN`, `JOPLIN_BASE_URL` and the `SBJ_*` semantic
-settings ([semantic-search.md](semantic-search.md)).
+settings. [configuration.md](configuration.md) lists every setting, and
+[troubleshooting.md](troubleshooting.md#http-mode) covers what can go wrong.
