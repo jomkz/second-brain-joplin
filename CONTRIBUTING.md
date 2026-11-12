@@ -71,9 +71,10 @@ caught locally. mypy runs in `strict` mode over `src`, `tests` and `scripts`
 All quality gates live in one reusable workflow,
 [`.github/workflows/checks.yml`](.github/workflows/checks.yml) — **lint**,
 **typecheck**, a **test** matrix (Python 3.11 to 3.15 on Linux, plus a run each
-on macOS and Windows), a **build** job that builds the package and runs `twine check`, and a
-**smoke** job that starts the built wheel with `uvx` on Linux, macOS and Windows
-and talks MCP to it over stdio and HTTP
+on macOS and Windows), and a **build** job that builds the package and runs
+`twine check`. The built wheel is then smoke-tested on all three systems (in the
+build job on Linux, and at the end of the macOS and Windows test jobs): it is
+started with `uvx` and spoken to over MCP, on stdio and HTTP
 ([`scripts/smoke.py`](scripts/smoke.py); run it yourself with `uv build` and
 then `uv run scripts/smoke.py --from dist/second_brain_joplin-<version>-py3-none-any.whl`). Both
 [`ci.yml`](.github/workflows/ci.yml) (on push/PR to `main`) and
