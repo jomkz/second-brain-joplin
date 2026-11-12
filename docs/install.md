@@ -1,15 +1,51 @@
 # Installation
 
-> This document is a stub. Full setup guide is tracked in GitHub issue T6.
+`second-brain-joplin` runs on the same computer as Joplin Desktop and is started
+by your AI client. Setting it up takes three steps: turn on Joplin's local API,
+check that the server starts, and add it to your client.
 
-## Prerequisites
+It is tested on Linux, macOS and Windows.
 
-- Joplin Desktop installed and running
-- Web Clipper service enabled: **Tools → Options → Web Clipper → Enable Web Clipper Service**
-- API token copied from that same settings panel
-- Python ≥ 3.11 or `uvx` (recommended)
+To reach your notes from claude.ai or the Claude mobile apps instead, see
+[remote-access.md](remote-access.md).
 
-## Claude Code
+## 1. Turn on Joplin's local API
+
+1. In Joplin Desktop open **Tools → Options → Web Clipper** (on macOS,
+   **Joplin → Settings → Web Clipper**).
+2. Choose **Enable Web Clipper Service**.
+3. On the same page, under **Advanced options**, copy the **authorisation
+   token**. This is your `JOPLIN_API_TOKEN`.
+
+The token gives full access to your notes. Keep it out of files you share or
+commit.
+
+To check that Joplin is listening:
+
+```bash
+curl http://localhost:41184/ping
+```
+
+It answers `JoplinClipperServer`. Joplin Desktop has to be running whenever you
+use the server.
+
+## 2. Check that the server starts
+
+The simplest way to run it is [`uvx`](https://docs.astral.sh/uv/), which comes
+with uv. It downloads the server on first use and needs no install step:
+
+```bash
+uvx second-brain-joplin --version
+```
+
+If you'd rather not use uv, see [Other ways to install](#other-ways-to-install).
+
+## 3. Add it to your client
+
+Every client needs the same three things: the command `uvx`, the arguments
+`second-brain-joplin serve`, and your token in `JOPLIN_API_TOKEN`.
+
+### Claude Code
 
 ```bash
 claude mcp add -s user second-brain-joplin \
@@ -17,47 +53,178 @@ claude mcp add -s user second-brain-joplin \
   -- uvx second-brain-joplin serve
 ```
 
-## Cursor / other MCP clients
+`-s user` makes it available in all your projects. Leave it out to add it to
+the current project only. Don't use `-s project`: that writes the token into a
+`.mcp.json` meant to be committed. Check it with `claude mcp list`, or `/mcp`
+inside Claude Code.
 
-See client documentation for MCP server configuration. Use:
+### Claude Desktop
 
-- **Command**: `uvx second-brain-joplin serve`
-- **Env**: `JOPLIN_API_TOKEN=your-token-here`
-- **Env**: `JOPLIN_BASE_URL=http://localhost:41184` (default, change only if customized)
+Open **Settings → Developer → Edit Config**, which opens
+`claude_desktop_config.json`:
 
-## Limiting which notebooks are visible (optional)
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 
-- `SBJ_NOTEBOOKS` — only these notebooks (ids or titles, comma-separated), with
-  their sub-notebooks
-- `SBJ_EXCLUDE_NOTEBOOKS` — hide these notebooks, with their sub-notebooks
+Add the server under `mcpServers`, then quit and reopen Claude Desktop:
 
-`second-brain-joplin notebooks` lists every notebook's id and shows what the
-filter hides. See
+```json
+{
+  "mcpServers": {
+    "second-brain-joplin": {
+      "command": "uvx",
+      "args": ["second-brain-joplin", "serve"],
+      "env": {
+        "JOPLIN_API_TOKEN": "your-token-here"
+      }
+    }
+  }
+}
+```
+
+### Cursor
+
+Put the same entry in `~/.cursor/mcp.json` (every project) or `.cursor/mcp.json`
+(one project):
+
+```json
+{
+  "mcpServers": {
+    "second-brain-joplin": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["second-brain-joplin", "serve"],
+      "env": {
+        "JOPLIN_API_TOKEN": "your-token-here"
+      }
+    }
+  }
+}
+```
+
+### Any other client
+
+Any client that can start a local (stdio) MCP server works. Give it:
+
+| Setting | Value |
+|---|---|
+| Command | `uvx` |
+| Arguments | `second-brain-joplin`, `serve` |
+| Environment | `JOPLIN_API_TOKEN` = your token |
+
+If the client can't find `uvx`, give it the full path
+([troubleshooting](troubleshooting.md#the-client-cant-start-the-server)).
+
+### Try it
+
+Ask your assistant "which notebooks do I have in Joplin?". It should call
+`joplin_overview` and list them. [tools.md](tools.md) describes every tool.
+
+## Options
+
+Each of these is a setting in the same `env` block. All of them are listed in
+[configuration.md](configuration.md).
+
+**Limit which notebooks the assistant can see.** By default it can read every
+notebook.
+
+```json
+"env": {
+  "JOPLIN_API_TOKEN": "your-token-here",
+  "SBJ_EXCLUDE_NOTEBOOKS": "Journal,Finances"
+}
+```
+
+Use `SBJ_NOTEBOOKS` instead to name the only notebooks it may see. See
 [Choosing which notebooks are exposed](remote-access.md#choosing-which-notebooks-are-exposed).
 
-## Creating notes (optional)
+**Let it add notes.** The server is read-only until you name the notebooks that
+may receive new notes:
 
-- `SBJ_WRITE_NOTEBOOKS` — the notebooks that may receive new notes (ids or
-  titles, with their sub-notebooks; `*` for every visible notebook)
+```json
+"SBJ_WRITE_NOTEBOOKS": "Inbox"
+```
 
-Without it the server is read-only. With it, `joplin_create_note` can add a note
-to those notebooks and do nothing else; your client's approval prompt is the
-check on each note. See [Creating notes](remote-access.md#creating-notes).
+It can then add a note there and do nothing else. Whether you are asked before
+each note is up to your client: Claude Code always asks, and elsewhere keep the
+tool set to ask every time
+([Who confirms each note](remote-access.md#who-confirms-each-note)).
 
-## Semantic search (optional)
+**Search by meaning.** Semantic search is an optional install. Change the
+command's arguments to:
 
-Semantic search needs the `[semantic]` extra. Point the command at the extra:
+```json
+"args": ["--python", "3.13", "--from", "second-brain-joplin[semantic]", "second-brain-joplin", "serve"]
+```
 
-- **Command**: `uvx --from "second-brain-joplin[semantic]" second-brain-joplin serve`
+or, for Claude Code:
 
-Optional `SBJ_*` env vars tune the backends (all have sensible defaults):
+```bash
+claude mcp add -s user second-brain-joplin \
+  -e JOPLIN_API_TOKEN=your-token-here \
+  -- uvx --python 3.13 --from "second-brain-joplin[semantic]" second-brain-joplin serve
+```
 
-- `SBJ_EMBEDDING_BACKEND` — `fastembed` (default) or `sentence-transformers`
-- `SBJ_EMBEDDING_MODEL` — model id override (empty = backend default)
-- `SBJ_VECTOR_STORE` — `sqlite-vec` (default) or `chroma`
-- `SBJ_INDEX_DIR` — index location (default: under your XDG data dir)
-- `SBJ_SEMANTIC_AUTO_SYNC` — re-sync before each search (`true`/`false`)
+Then build the index once. See [semantic-search.md](semantic-search.md).
 
-For `chroma` also install `[semantic-chroma]`; for `sentence-transformers`
-(bge-m3) also install `[semantic-st]`. See
-[semantic-search.md](semantic-search.md) for details.
+## Which Python
+
+You don't need to install Python yourself: `uvx` finds one, or downloads one.
+
+- **The server** runs on Python 3.11 to 3.15.
+- **Semantic search** runs on Python 3.11 to 3.14. Its embedding runtime
+  (`onnxruntime`) has no build for Python 3.15 yet (November 2026).
+
+That second line is why the semantic commands above say `--python 3.13`. Without
+it, on a computer whose own Python is 3.15, the installer can't satisfy
+`[semantic]` with the current release and falls back to a release from before
+semantic search existed. It says so only in a one-line warning the first time,
+which a client never shows you. The sign is `--version` printing `0.2.0`, with
+no semantic tools and no HTTP mode. `--python 3.13` makes `uvx` fetch a Python
+that everything supports.
+
+## Updating
+
+`uvx` installs the newest release the first time and then keeps using that copy.
+To move to a newer release, either name the version you want:
+
+```bash
+uvx second-brain-joplin@1.0.0 serve
+uvx --python 3.13 --from "second-brain-joplin[semantic]==1.0.0" second-brain-joplin serve
+```
+
+or ask for the newest every time the server starts, with
+`second-brain-joplin@latest` in place of `second-brain-joplin`. Naming the
+version means you choose when a server that reads your notes changes.
+[CHANGELOG.md](../CHANGELOG.md) says what each release changed.
+
+## Other ways to install
+
+**As an installed command, with uv:**
+
+```bash
+uv tool install second-brain-joplin
+# with semantic search:
+uv tool install --python 3.13 "second-brain-joplin[semantic]"
+```
+
+The command is then `second-brain-joplin serve` (no `uvx`), and
+`uv tool upgrade second-brain-joplin` updates it. This is the form to use for
+[HTTP mode](remote-access.md#keeping-it-running), where a service manager starts
+the server.
+
+**With pip,** into a virtual environment (Python 3.11 or newer):
+
+```bash
+python -m venv ~/.venvs/second-brain-joplin
+~/.venvs/second-brain-joplin/bin/pip install second-brain-joplin
+```
+
+Give your client the full path to the command it installs,
+`~/.venvs/second-brain-joplin/bin/second-brain-joplin` (on Windows,
+`Scripts\second-brain-joplin.exe` inside the environment), with the argument
+`serve`.
+
+## If something doesn't work
+
+See [troubleshooting.md](troubleshooting.md).

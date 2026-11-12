@@ -13,7 +13,7 @@ Inspired by [second-brain-mcp](https://github.com/noesskeetit/second-brain-mcp) 
 
 ## How it works
 
-Joplin Desktop exposes a local REST API on `localhost:41184` (the Web Clipper service). This server wraps that API as MCP tools, so your AI client can query and update your notes in real time — no export step, no sync lag.
+Joplin Desktop exposes a local REST API on `localhost:41184` (the Web Clipper service). This server wraps that API as MCP tools, so your AI client can read your notes in real time, and add new ones where you allow it — no export step, no sync lag.
 
 ```
 Claude Code / Cursor
@@ -35,7 +35,7 @@ Your notes
 - **Joplin Desktop** running with the Web Clipper service enabled:  
   **Tools → Options → Web Clipper → Enable Web Clipper Service**
 - **API token** — copy it from the Web Clipper settings panel
-- **Python ≥ 3.11** or [`uvx`](https://docs.astral.sh/uv/) (recommended — no install needed)
+- [`uvx`](https://docs.astral.sh/uv/) (recommended — no install needed), or Python ≥ 3.11
 
 ---
 
@@ -57,7 +57,7 @@ claude mcp add -s user second-brain-joplin \
 | `JOPLIN_API_TOKEN` | token from Joplin Web Clipper settings |
 | `JOPLIN_BASE_URL` | `http://localhost:41184` (default) |
 
-See [docs/install.md](docs/install.md) for per-client setup guides.
+See [docs/install.md](docs/install.md) for step-by-step setup, including Claude Desktop and Cursor, and [docs/troubleshooting.md](docs/troubleshooting.md) if something doesn't work.
 
 ### Remote: a Claude custom connector
 
@@ -79,9 +79,10 @@ connectors (claude.ai, the Claude apps, Cowork) can reach it through a tunnel. S
 | `joplin_reindex` | Build/refresh the semantic index | The local index only, never Joplin |
 | `joplin_create_note` | Add a new markdown note to a notebook you allow (`title`, `body`, `notebook` by title or id) | A new note; never edits, moves or deletes. Off by default |
 
-Every tool carries MCP annotations (read-only; for `joplin_reindex` local and
-non-destructive; for `joplin_create_note` a write that only adds), so clients
-can tell what each one does.
+[docs/tools.md](docs/tools.md) describes each tool's arguments, results and
+errors. Every tool carries MCP annotations (read-only; for `joplin_reindex`
+local and non-destructive; for `joplin_create_note` a write that only adds), so
+clients can tell what each one does.
 
 `joplin_create_note` exists only once you set `SBJ_WRITE_NOTEBOOKS` to the
 notebooks that may receive notes (ids or titles, or `*` for every visible one).
@@ -94,10 +95,8 @@ To limit which notebooks these tools can see, set `SBJ_NOTEBOOKS` (only these) o
 `second-brain-joplin notebooks` lists the ids and shows what a filter hides. See
 [Choosing which notebooks are exposed](docs/remote-access.md#choosing-which-notebooks-are-exposed).
 
-> The read tools query a running Joplin instance as of v0.2. Semantic search
-> (`joplin_semantic_search` / `joplin_reindex`) landed in v0.3 and needs the
-> optional `[semantic]` extra (see [Semantic search](#semantic-search)). The
-> notebook filter and note creation landed in v0.5.
+> Semantic search (`joplin_semantic_search` / `joplin_reindex`) needs the
+> optional `[semantic]` extra (see [Semantic search](#semantic-search)).
 
 ---
 
@@ -114,8 +113,12 @@ It ships behind an optional extra so the base install stays light:
 # Claude Code (note the quotes around the package+extra)
 claude mcp add -s user second-brain-joplin \
   -e JOPLIN_API_TOKEN=your-token-here \
-  -- uvx --from "second-brain-joplin[semantic]" second-brain-joplin serve
+  -- uvx --python 3.13 --from "second-brain-joplin[semantic]" second-brain-joplin serve
 ```
+
+Keep `--python 3.13`: the embedding runtime has no build for Python 3.15 yet,
+and without it a computer whose own Python is 3.15 quietly gets a release from
+before semantic search existed ([Which Python](docs/install.md#which-python)).
 
 The default stack is [FastEmbed](https://github.com/qdrant/fastembed) (ONNX, no
 PyTorch) with [`sqlite-vec`](https://github.com/asg017/sqlite-vec). You can swap
@@ -143,7 +146,22 @@ fresh incrementally — only notes changed since the last sync are re-embedded.
 
 ## Notebook structure
 
-The [PARA method](https://fortelabs.com/blog/para/) works well with Joplin. See [docs/notebook-structure.md](docs/notebook-structure.md) for a recommended setup.
+The [PARA method](https://fortelabs.com/blog/para/) works well with Joplin. See [docs/notebook-structure.md](docs/notebook-structure.md) for a recommended setup, and [templates/](templates/README.md) for project, area, resource and weekly-review notes to import.
+
+---
+
+## Documentation
+
+| Guide | What it covers |
+|---|---|
+| [Installation](docs/install.md) | Joplin's local API, each client's setup, which Python, updating |
+| [Tool reference](docs/tools.md) | Every tool: arguments, results, errors |
+| [Configuration](docs/configuration.md) | Every setting and where it is read from; the command line |
+| [Troubleshooting](docs/troubleshooting.md) | What each error means and what to do |
+| [Semantic search](docs/semantic-search.md) | Searching by meaning: install, index, backends |
+| [Remote access](docs/remote-access.md) | A Claude custom connector: HTTP mode, sign-in, notebook filter, creating notes |
+| [Notebook structure](docs/notebook-structure.md) and [templates](templates/README.md) | A PARA layout and starter notes |
+| [Changelog](CHANGELOG.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md) | |
 
 ---
 
