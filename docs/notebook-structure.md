@@ -27,5 +27,9 @@ with any structure.
 See [reference/second-brain-inspiration.md](reference/second-brain-inspiration.md)
 for the article that inspired this layout.
 
-> Ready-to-import Joplin templates for these notebooks are planned for v1.0
-> (see the [roadmap](../README.md#roadmap) and issue #11).
+## Templates
+
+[templates/](../templates/README.md) has starter notes to import into Joplin: a
+project, an area, a resource and a weekly review. They are plain Markdown, work
+with or without Joplin's Templates plugin, and your assistant can fill one in
+and file it in your Inbox.
