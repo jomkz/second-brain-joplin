@@ -57,21 +57,25 @@ uv sync --extra semantic                 # sqlite-vec + FastEmbed (light default
 
 ```bash
 uvx pre-commit run --all-files   # ruff lint + format + actionlint (the authoritative gate)
-uv run mypy                      # strict static type checking (src + tests)
+uv run mypy                      # strict static type checking (src, tests, scripts)
 ```
 
 `.pre-commit-config.yaml` is the single source of truth for lint tooling and
 versions — CI runs the exact same `pre-commit run --all-files`. It also runs
 `actionlint` over `.github/workflows/*.yml`, so workflow-syntax regressions are
-caught locally. mypy runs in `strict` mode over both `src` and `tests`
+caught locally. mypy runs in `strict` mode over `src`, `tests` and `scripts`
 (configured in `pyproject.toml`).
 
 ## How CI works
 
 All quality gates live in one reusable workflow,
 [`.github/workflows/checks.yml`](.github/workflows/checks.yml) — **lint**,
-**typecheck**, a **test** matrix (Python 3.11/3.12/3.13), and a **build** job
-that builds the package, runs `twine check`, and smoke-tests the wheel. Both
+**typecheck**, a **test** matrix (Python 3.11 to 3.15 on Linux, plus a run each
+on macOS and Windows), a **build** job that builds the package and runs `twine check`, and a
+**smoke** job that starts the built wheel with `uvx` on Linux, macOS and Windows
+and talks MCP to it over stdio and HTTP
+([`scripts/smoke.py`](scripts/smoke.py); run it yourself with `uv build` and
+then `uv run scripts/smoke.py --from dist/second_brain_joplin-<version>-py3-none-any.whl`). Both
 [`ci.yml`](.github/workflows/ci.yml) (on push/PR to `main`) and
 [`release.yml`](.github/workflows/release.yml) (before publishing to PyPI) call
 it, so nothing merges or ships without passing the same checks. Run `uv sync

@@ -59,7 +59,7 @@ answer *when* a piece of work ships; there are deliberately no `phase-*` labels
 | **v0.2 — Core Read Tools** | All read MCP tools working against Joplin |
 | **v0.3 — Semantic Search** | Embedding index and semantic search |
 | **v0.4 — Remote Access** | Streamable HTTP with GitHub sign-in, deployed as a Claude custom connector |
-| **v0.5 — Write Workflow** | Human-gated note creation |
+| **v0.5 — Write Workflow** | Notebook filter; note creation you allow and approve |
 | **v1.0 — Publish** | PyPI release, full docs, Joplin templates |
 
 ## Triage
@@ -94,6 +94,12 @@ To require CI green before merge, an operator enables branch protection on `main
 
 (Check names are `<caller job> / <job name>`; they appear in the checks list on
 the first PR once the workflow has run.)
+
+The same workflow also runs `Test (Python 3.14)`, `Test (Python 3.15)`,
+`Test (macOS, Python 3.13)`, `Test (Windows, Python 3.13)` and
+`Smoke (<runner>)` on Linux, macOS and Windows.
+A release is gated on all of them, because `release.yml` needs the whole suite.
+Mark them required as well to gate merges on them.
 
 A separate [`labeler.yml`](../.github/workflows/labeler.yml) workflow runs on
 `pull_request_target` to apply `component:*` labels (see [Labels](#labels)
