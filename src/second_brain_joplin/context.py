@@ -14,6 +14,8 @@ from fastmcp import Context
 
 from .config import Settings
 from .joplin_client import JoplinClient
+from .recent import RecentNotes
+from .scope import NotebookScope, WriteTargets, current_scope, current_write_targets
 from .semantic.service import SemanticSearchService
 
 
@@ -26,7 +28,25 @@ class AppContext:
     # True in HTTP mode: tools that would run past a remote client's time limit
     # (a full reindex) refuse there and point at the CLI instead.
     remote: bool = False
+    # What the write tool sent lately, so a repeated request isn't a second note.
+    recent_notes: RecentNotes = field(default_factory=RecentNotes, repr=False)
     _semantic: SemanticSearchService | None = field(default=None, init=False, repr=False)
+
+    async def scope(self) -> NotebookScope:
+        """The notebooks a tool may see, resolved against Joplin now (scope.py).
+
+        Raises :class:`NotebookFilterError` when the configured filter doesn't
+        resolve; a tool must then refuse rather than show anything.
+        """
+        return await current_scope(self.client, self.settings)
+
+    async def write_targets(self) -> WriteTargets:
+        """The notebooks a note may be created in, resolved against Joplin now.
+
+        Empty when the server is read-only. Raises :class:`NotebookFilterError`
+        when the notebook settings don't resolve; the write tool must then refuse.
+        """
+        return await current_write_targets(self.client, self.settings)
 
     def semantic(self) -> SemanticSearchService:
         """Return the semantic service, building it (and loading the model) once.

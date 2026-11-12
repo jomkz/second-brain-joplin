@@ -6,6 +6,76 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.0] — Write Workflow
+
+Decide what the AI can reach, and where it can write. A notebook filter
+(`SBJ_NOTEBOOKS`, `SBJ_EXCLUDE_NOTEBOOKS`) limits every tool to the notebooks you
+choose, on stdio and HTTP alike, and never falls back to showing everything.
+Note creation arrives as a single tool, `joplin_create_note`: off until
+`SBJ_WRITE_NOTEBOOKS` lists the notebooks that may receive notes, able to add a
+note and nothing else, with your client's approval prompt as the check on each
+one. A server that sets none of the three variables behaves as before, except
+that `joplin_read` now takes Joplin ids only
+([notebook filter](docs/remote-access.md#choosing-which-notebooks-are-exposed),
+[creating notes](docs/remote-access.md#creating-notes)).
+
+### Added
+
+- **Notebook filter** (#59): `SBJ_NOTEBOOKS` (only these) and
+  `SBJ_EXCLUDE_NOTEBOOKS` (not these) limit which notebooks every tool can see,
+  on stdio and HTTP alike. Entries are notebook ids or titles and cover their
+  sub-notebooks; hiding wins when both are set. `joplin_overview` lists visible
+  notebooks only, `joplin_search` and `joplin_recent` leave hidden notes out and
+  keep reading until `limit` is filled, `joplin_read` answers for a hidden note
+  exactly as for one that doesn't exist, and semantic search never writes a
+  hidden note to its index. The filter is checked against Joplin on every call,
+  so a moved note or a new sub-notebook takes effect at once. A filter that
+  doesn't match Joplin's notebooks never shows everything instead: `serve`
+  refuses to start, and every tool refuses if it stops matching later. The same
+  goes for a filter variable that is set but lists nothing. A semantic search
+  returns only notes that are visible at that moment, whatever the shared index
+  file holds, and `reindex` says whether it ran with a filter
+  ([guide](docs/remote-access.md#choosing-which-notebooks-are-exposed)).
+- **`second-brain-joplin notebooks`** (#59): lists every notebook with its id
+  and note count, marked hidden, visible or writable under the current
+  settings, to find the ids and check a filter before a client sees through it.
+- **Note creation, where you allow it** (#10): `joplin_create_note(title, body,
+  notebook)` adds one new markdown note to a notebook named by its title or id.
+  It is the only write tool, and it can't change, move or delete anything. The
+  server stays read-only until `SBJ_WRITE_NOTEBOOKS` lists where notes may go
+  (ids or titles with their sub-notebooks, or `*` for every visible notebook);
+  without it the tool isn't registered. A note can never go into a notebook the
+  filter hides, and every notebook that can't receive one is refused with the
+  same answer. The check on each note is the client's approval prompt, so the
+  call carries the note in readable form; Claude Code is told to prompt on every
+  call. Each attempt is logged by id, never by title or text. When Joplin fails
+  the tool says which of three things happened: nothing was created, the note
+  was created although the answer got lost, or it can't be known yet. The same
+  request repeated within ten minutes returns the note already made
+  (`already_created`) instead of a second copy
+  ([guide](docs/remote-access.md#creating-notes)).
+
+### Changed
+
+- **`joplin_read` takes Joplin ids only** (#59): `note_id` must be 32
+  hexadecimal characters, the shape of every Joplin id; anything else is refused
+  before Joplin is called.
+- **`serve` builds the server after reading `--env-file` and `.env`** (#10), so
+  those files decide whether the write tool exists.
+- **A variable set to nothing no longer beats `--env-file` or `.env`** (#59).
+  An empty `SBJ_EXCLUDE_NOTEBOOKS` in a service's environment would otherwise
+  silently cancel the filter written in the file. A variable set to a value
+  still wins.
+- **HTTP mode holds FastMCP's loggers at INFO** (#10). At DEBUG they print each
+  tool call's arguments, which are note content.
+
+### Fixed
+
+- A semantic sync asks Joplin for its notes before it touches the index (#59),
+  so a full rebuild started while Joplin is down no longer empties the index.
+- `joplin_recent` stops reading Joplin's list at the first note older than
+  `days` (#59) instead of always fetching `limit` notes first.
+
 ## [0.4.0] — Remote Access
 
 Use your notes from Claude anywhere: `serve --transport http` makes the server a
@@ -197,7 +267,8 @@ Initial project skeleton — the MCP server starts and all tools are stubbed.
 - Documentation: install, notebook structure (PARA), project management,
   releasing runbook, security policy, and an inspiration/reference note.
 
-[Unreleased]: https://github.com/jomkz/second-brain-joplin/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/jomkz/second-brain-joplin/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.1.0...v0.2.0

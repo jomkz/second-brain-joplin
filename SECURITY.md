@@ -45,14 +45,35 @@ public issue. We aim to acknowledge reports within a few days.
 - **Notes are untrusted input to the AI.** A note can hold text from anywhere
   (web clippings, pasted email). Claude reads it as data, but text written to
   steer an AI is still text an AI reads: keep that in mind for notes you didn't
-  write, especially once write tools exist.
+  write, especially with note creation turned on, where your approval of each
+  new note is what stops such text from writing more.
 - **Least privilege.** Anything an MCP client can read, the connected AI can
   read. Don't expose notebooks containing credentials, regulated data, or other
   people's private information. Apply least privilege to your notes.
-- **No silent writes.** The v0.2 tools are read-only; the semantic tools only
-  read from Joplin and write to a local index (below). Note creation is planned
-  as an explicit **human-gated** flow in v0.5 — no writes to Joplin happen
-  without your confirmation.
+- **A notebook filter.** `SBJ_NOTEBOOKS` (only these) and
+  `SBJ_EXCLUDE_NOTEBOOKS` (not these) limit which notebooks any tool can see, on
+  every transport
+  ([how it works](docs/remote-access.md#choosing-which-notebooks-are-exposed)).
+  A hidden note is left out of listings and searches, reads exactly like a note
+  that doesn't exist, and is never written to the semantic index by a server
+  that has the filter. A filter that doesn't match Joplin's notebooks, or a
+  filter variable that is set but lists nothing, makes the server refuse to
+  start, or every tool refuse if it stops matching later, never show everything.
+  It filters by notebook: a visible note that quotes a hidden one still shows
+  what it quotes.
+- **No silent writes.** The server is read-only until you list where notes may
+  be created (`SBJ_WRITE_NOTEBOOKS`); without it no write tool is registered and
+  a client can't see one. With it, `joplin_create_note` adds a new note to those
+  notebooks and does nothing else: it can't edit, move or delete, and it can't
+  write to a notebook the filter hides. The check on each note is your client's
+  approval prompt, and the call carries the note in readable form so the prompt
+  shows what will be written. Keep that prompt on (in claude.ai, "Needs
+  approval" rather than "Allow always"); Claude Code is told to ask on every
+  call. The server can't ask you itself on every client, so it doesn't claim to:
+  it limits where a note can land, logs each attempt by id, and returns the note
+  already made when the same request is repeated within ten minutes
+  ([Creating notes](docs/remote-access.md#creating-notes)). The semantic tools
+  only read from Joplin and write to a local index (below).
 
 ### Semantic search
 
@@ -64,7 +85,13 @@ footprint in two ways worth understanding:
   the embedding vectors **plus plaintext chunk text and note titles/ids** derived
   from your notes — treat it as sensitive as the notes themselves. Stale entries
   are pruned only when you reindex, so a note deleted in Joplin can linger in the
-  index until the next sync (run `joplin_reindex` to reconcile).
+  index until the next sync (run `joplin_reindex` to reconcile). With a notebook
+  filter set, hidden notes are never indexed, one that becomes hidden is dropped
+  at the next sync, and a search returns only notes that are visible at that
+  moment, whatever the file holds. The file is shared by every process that
+  uses the same `SBJ_INDEX_DIR`: a `second-brain-joplin reindex` run without
+  the server's settings has no filter and writes every note into it, so run it
+  with the server's `--env-file`.
 - **A one-time model download.** The first `joplin_reindex` downloads the
   embedding model from the internet (e.g. the Hugging Face / FastEmbed CDN) and
   caches it locally. Your note *content* is embedded on your machine and is never

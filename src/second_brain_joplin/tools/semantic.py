@@ -14,9 +14,10 @@ from fastmcp.exceptions import ToolError
 from pydantic import Field
 
 from ..context import app_context
-from ..errors import JoplinError, SemanticUnavailableError
+from ..errors import JoplinError, NotebookFilterError, SemanticUnavailableError
 from ..models import MAX_SEARCH_LIMIT, ReindexResult, SemanticResult
 from .annotations import LOCAL_INDEX_WRITE, READ_ONLY
+from .failure import tool_error
 
 
 def register(mcp: FastMCP) -> None:
@@ -32,8 +33,8 @@ def register(mcp: FastMCP) -> None:
         try:
             service = app_context(ctx).semantic()
             return await service.search(query, limit)
-        except (SemanticUnavailableError, JoplinError) as exc:
-            raise ToolError(str(exc)) from exc
+        except (SemanticUnavailableError, JoplinError, NotebookFilterError) as exc:
+            raise tool_error(exc) from exc
 
     @mcp.tool(annotations=LOCAL_INDEX_WRITE)
     async def joplin_reindex(ctx: Context, full: bool = False) -> ReindexResult:
@@ -42,14 +43,15 @@ def register(mcp: FastMCP) -> None:
         if full and app.remote:
             raise ToolError(
                 "A full rebuild can take longer than a remote tool call may run. Run "
-                "`second-brain-joplin reindex --full` on the server's machine instead; "
+                "`second-brain-joplin reindex --full` on the server's machine instead, "
+                "with the server's --env-file so its notebook filter applies; "
                 "incremental syncs (full=false) work here."
             )
         try:
             service = app.semantic()
             stats = await service.sync(full=full)
-        except (SemanticUnavailableError, JoplinError) as exc:
-            raise ToolError(str(exc)) from exc
+        except (SemanticUnavailableError, JoplinError, NotebookFilterError) as exc:
+            raise tool_error(exc) from exc
         return ReindexResult(
             added=stats.added,
             updated=stats.updated,

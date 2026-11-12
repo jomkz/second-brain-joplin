@@ -18,7 +18,9 @@ with any structure.
 - **Frictionless capture** into a single Inbox means you actually record things;
   the assistant can help sort them during a weekly review.
 - **Stable top-level notebooks** give the AI predictable places to search and
-  file notes (e.g. "add this to my Inbox", "what's still unsorted?").
+  file notes (e.g. "add this to my Inbox", "what's still unsorted?"). Setting
+  `SBJ_WRITE_NOTEBOOKS=Inbox` lets it add notes to the Inbox and nowhere else
+  ([Creating notes](remote-access.md#creating-notes)).
 - **Append-only logs** in Areas ("what did I log at the gym this week?") turn
   your own notes into something you can ask questions of.
 

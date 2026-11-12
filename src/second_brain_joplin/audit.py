@@ -5,13 +5,15 @@ never hold note content or credentials. Each tool call logs one line: the tool,
 the caller's GitHub id, the outcome and the duration. Never arguments (a search
 query is note content), never results, never tokens.
 
-Two leaks are closed by configuration rather than code:
+Three leaks are closed by configuration rather than code:
 
 - **httpx request logging.** The Joplin API token rides in the URL's query string
   (Joplin's API takes it no other way), so httpx's INFO line for each request would
   print it. The HTTP client loggers are pinned to WARNING.
 - **uvicorn's access log.** The OAuth callback URL carries the authorization code
   in its query string. The access log is off (see ``remote.run_http``).
+- **FastMCP's debug log.** At DEBUG it prints every tool call with its arguments.
+  Its loggers are held at INFO or above.
 """
 
 import logging
@@ -27,6 +29,9 @@ logger = logging.getLogger("second_brain_joplin.audit")
 
 # Loggers that would print request URLs, and with them the Joplin token.
 QUIET_LOGGERS = ("httpx", "httpcore", "httpx2", "httpcore2")
+# Loggers that print each tool call's arguments at DEBUG. Arguments are note
+# content (a search query, the text of a new note), so these stay at INFO or above.
+NO_DEBUG_LOGGERS = ("fastmcp", "mcp")
 LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
 ANONYMOUS = "anonymous"
 
@@ -119,3 +124,7 @@ def configure_logging(level: int = logging.INFO) -> None:
         package.addHandler(handler)
     for name in QUIET_LOGGERS:
         logging.getLogger(name).setLevel(logging.WARNING)
+    for name in NO_DEBUG_LOGGERS:
+        chatty = logging.getLogger(name)
+        if chatty.getEffectiveLevel() < logging.INFO:
+            chatty.setLevel(logging.INFO)

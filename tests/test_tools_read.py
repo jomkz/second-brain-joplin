@@ -13,6 +13,11 @@ from second_brain_joplin.server import mcp
 
 BASE_URL = "http://localhost:41184"
 
+# Note ids in Joplin's shape (32 hexadecimal characters); the tools take no other.
+ABC = "abc".ljust(32, "0")
+MISSING = "0" * 32
+LONG = "1" * 32
+
 
 def _ms(seconds_ago: float) -> int:
     return int((time.time() - seconds_ago) * 1000)
@@ -96,11 +101,11 @@ async def test_search_empty_returns_empty_list() -> None:
 
 @respx.mock
 async def test_read_converts_timestamps() -> None:
-    respx.get(f"{BASE_URL}/notes/abc").mock(
+    respx.get(f"{BASE_URL}/notes/{ABC}").mock(
         return_value=httpx.Response(
             200,
             json={
-                "id": "abc",
+                "id": ABC,
                 "title": "T",
                 "body": "hello",
                 "parent_id": "root",
@@ -110,7 +115,7 @@ async def test_read_converts_timestamps() -> None:
         )
     )
     async with Client(mcp) as client:
-        result = await client.call_tool("joplin_read", {"note_id": "abc"})
+        result = await client.call_tool("joplin_read", {"note_id": ABC})
 
     note = result.data
     assert _attr(note, "title") == "T"
@@ -120,10 +125,10 @@ async def test_read_converts_timestamps() -> None:
 
 @respx.mock
 async def test_read_missing_note_raises_tool_error() -> None:
-    respx.get(f"{BASE_URL}/notes/missing").mock(return_value=httpx.Response(404))
+    respx.get(f"{BASE_URL}/notes/{MISSING}").mock(return_value=httpx.Response(404))
     async with Client(mcp) as client:
-        with pytest.raises(ToolError):
-            await client.call_tool("joplin_read", {"note_id": "missing"})
+        with pytest.raises(ToolError, match="was not found"):
+            await client.call_tool("joplin_read", {"note_id": MISSING})
 
 
 @respx.mock
@@ -156,11 +161,11 @@ async def test_tool_surfaces_connection_error() -> None:
 
 
 def _mock_note(body: str) -> None:
-    respx.get(f"{BASE_URL}/notes/long").mock(
+    respx.get(f"{BASE_URL}/notes/{LONG}").mock(
         return_value=httpx.Response(
             200,
             json={
-                "id": "long",
+                "id": LONG,
                 "title": "Long",
                 "body": body,
                 "parent_id": "root",
@@ -173,7 +178,7 @@ def _mock_note(body: str) -> None:
 
 async def _read(**args: Any) -> Any:
     async with Client(mcp) as client:
-        result = await client.call_tool("joplin_read", {"note_id": "long", **args})
+        result = await client.call_tool("joplin_read", {"note_id": LONG, **args})
     return result.data
 
 
@@ -237,9 +242,16 @@ async def test_read_counts_characters_not_bytes() -> None:
         ("joplin_recent", {"limit": 101}),
         ("joplin_recent", {"days": 0}),
         ("joplin_recent", {"days": 3651}),
-        ("joplin_read", {"note_id": "x", "offset": -1}),
-        ("joplin_read", {"note_id": "x", "max_chars": 0}),
-        ("joplin_read", {"note_id": "x", "max_chars": 100_001}),
+        ("joplin_read", {"note_id": LONG, "offset": -1}),
+        ("joplin_read", {"note_id": LONG, "max_chars": 0}),
+        ("joplin_read", {"note_id": LONG, "max_chars": 100_001}),
+        # Not an id: nothing that could reach another Joplin endpoint gets through.
+        ("joplin_read", {"note_id": "abc"}),
+        ("joplin_read", {"note_id": ""}),
+        ("joplin_read", {"note_id": f"../folders/{LONG}"}),
+        ("joplin_read", {"note_id": f"{LONG}/resources"}),
+        ("joplin_read", {"note_id": f"{LONG}?fields=body"}),
+        ("joplin_read", {"note_id": LONG + "\n"}),
         ("joplin_semantic_search", {"query": "q", "limit": 0}),
         ("joplin_semantic_search", {"query": "q", "limit": 51}),
     ],
