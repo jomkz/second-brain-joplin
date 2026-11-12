@@ -14,6 +14,18 @@ public issue. We aim to acknowledge reports within a few days.
   `localhost` (default `http://localhost:41184`). The Joplin API token is read from
   the environment (`JOPLIN_API_TOKEN`), never leaves the machine, and is never
   committed — keep it out of version control.
+- **Settings come only from where you put them.** The server is configured by
+  the environment it is started with and by a file you name with `--env-file`.
+  It reads no settings file from the directory it is started in, which is
+  whatever project your MCP client has open, nor from any directory above where
+  it is installed, so a stray or planted `.env` can't point it at another Joplin
+  or switch note creation on. (A clone of this repository run in development
+  reads the `.env` at the top of that clone, and nothing else.) The same goes
+  for the settings of FastMCP, the library underneath: the server keeps it from
+  reading a `.env` in the working directory, and chooses the transport itself.
+  Only `--transport http` or `SBJ_TRANSPORT=http` makes the server listen on the
+  network, and then every HTTP-mode protection below applies. Before 1.0.1
+  neither of these held: update.
 - **stdio (the default) is local only.** The server is launched by an MCP client
   on the same machine (e.g. Claude Code) and talks to nothing else. What the AI
   client then does with what it reads is that client's business.

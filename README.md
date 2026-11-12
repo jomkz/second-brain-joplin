@@ -117,8 +117,8 @@ claude mcp add -s user second-brain-joplin \
 ```
 
 Keep `--python 3.13`: the embedding runtime has no build for Python 3.15 yet,
-and without it a computer whose own Python is 3.15 quietly gets a release from
-before semantic search existed ([Which Python](docs/install.md#which-python)).
+so without it the install fails on a computer whose own Python is 3.15
+([Which Python](docs/install.md#which-python)).
 
 The default stack is [FastEmbed](https://github.com/qdrant/fastembed) (ONNX, no
 PyTorch) with [`sqlite-vec`](https://github.com/asg017/sqlite-vec). You can swap

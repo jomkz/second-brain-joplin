@@ -6,6 +6,56 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.1]
+
+Two fixes to where the server takes its settings from. Each closes a way for a
+file you never pointed the server at to change what it exposes. Update if you
+run the server over stdio and ever open a project you didn't write: a cloned
+repository in your MCP client is enough. The first of them can't happen to a
+server that is already running in HTTP mode. The documentation also catches up
+with two things learned on release day.
+
+### Security
+
+- **`serve` can no longer be switched to HTTP from outside** (#63). FastMCP, the
+  library underneath, has settings of its own (`FASTMCP_*`), which it reads from
+  the environment and from a `.env` in the working directory. One of them
+  chooses the transport, and `serve` left that choice to it. For an MCP server
+  the working directory is whatever project the client has open, so a `.env`
+  there with `FASTMCP_TRANSPORT=http` made the stdio server listen on a network
+  port instead, on whatever address the same file named, with none of HTTP
+  mode's checks: no sign-in and no Host check. Anyone who could reach that port
+  could call the tools. Every release up to 1.0.0 is affected. `serve` now names
+  its transport itself, so `FASTMCP_TRANSPORT` has no effect, and FastMCP is
+  kept from reading a `.env` in the working directory at all. Only
+  `--transport http` or `SBJ_TRANSPORT=http` starts HTTP mode, and HTTP mode
+  still refuses to start without sign-in.
+- **An installed server reads no `.env`** (#63). `.env` is a convenience for a
+  development checkout, but the search for it started where the package was
+  installed and went up through every directory above. An install under your
+  home directory, which is where `uvx` and `uv tool install` put it, read
+  `~/.env`, and a copy in a project's virtual environment read that project's
+  `.env`. Such a file could set anything not already set, including which
+  Joplin the server talks to, the notebook filter and where notes may be
+  created. Now only a clone of this repository reads a `.env`, and only the one
+  at the top of that clone. An installed server takes its settings from its
+  environment and from `--env-file`, as the guides already told you to do. The
+  directory the server is started in was never searched for these, and still
+  isn't. If you relied on `~/.env`, move those lines to your client's `env`
+  block or to a file you pass with `--env-file`
+  ([Where settings come from](docs/configuration.md#where-settings-come-from)).
+
+### Changed
+
+- **The guides say what a `[semantic]` install on Python 3.15 does today**
+  (#63): it fails, naming `onnxruntime`. It used to install 0.2.0 instead; 0.1.0
+  and 0.2.0 have been withdrawn from PyPI so that it can't. The advice is
+  unchanged: pass `--python 3.13`
+  ([Which Python](docs/install.md#which-python)).
+- **`scripts/smoke.py --refresh`** (#63) asks PyPI again before installing, for
+  checking a version in the minutes after it is released; the release runbook
+  uses it.
+
 ## [1.0.0] — Publish
 
 The first stable release. Nothing about how the server behaves has changed
@@ -327,7 +377,8 @@ Initial project skeleton — the MCP server starts and all tools are stubbed.
 - Documentation: install, notebook structure (PARA), project management,
   releasing runbook, security policy, and an inspiration/reference note.
 
-[Unreleased]: https://github.com/jomkz/second-brain-joplin/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/jomkz/second-brain-joplin/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/jomkz/second-brain-joplin/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.5.0...v1.0.0
 [0.5.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.3.0...v0.4.0
