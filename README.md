@@ -7,7 +7,7 @@ An MCP server that turns your [Joplin](https://joplinapp.org/) knowledge base in
 
 Inspired by [second-brain-mcp](https://github.com/noesskeetit/second-brain-mcp) (for Obsidian). This project covers the same use case for Joplin: your AI assistant reads, searches, and files notes directly, without leaving the tool you already use.
 
-> **Status:** Pre-alpha — the read tools, semantic search, remote access (a Claude custom connector, [docs/remote-access.md](docs/remote-access.md)), a notebook filter and note creation (off until you allow it) are live. See the [roadmap](#roadmap) and open issues.
+> **Status:** stable. From 1.0 the tools (names, arguments, results), the settings and the command line follow [semantic versioning](https://semver.org/): nothing you rely on changes without a new major version. Tested on Linux, macOS and Windows.
 
 ---
 
@@ -174,7 +174,7 @@ The [PARA method](https://fortelabs.com/blog/para/) works well with Joplin. See 
 | [v0.3 — Semantic Search](https://github.com/jomkz/second-brain-joplin/milestone/3) | Embedding index, semantic search | Done |
 | [v0.4 — Remote Access](https://github.com/jomkz/second-brain-joplin/milestone/6) | Streamable HTTP, GitHub sign-in, Claude custom connector | Done |
 | [v0.5 — Write Workflow](https://github.com/jomkz/second-brain-joplin/milestone/4) | Notebook filter; note creation you allow and approve | Done |
-| [v1.0 — Publish](https://github.com/jomkz/second-brain-joplin/milestone/5) | PyPI, full docs, templates | Planned |
+| [v1.0 — Publish](https://github.com/jomkz/second-brain-joplin/milestone/5) | PyPI, full docs, templates | Done |
 
 ---
 

@@ -6,6 +6,66 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.0] — Publish
+
+The first stable release. Nothing about how the server behaves has changed
+since 0.5.0; what is new is everything around it: a reference for every tool
+and every setting, a troubleshooting guide, a real installation guide, starter
+notes for a PARA notebook layout, and a check before every release that the
+built package starts and speaks MCP on Linux, macOS and Windows. From this
+version the tools
+(names, arguments, results), the settings and the command line follow semantic
+versioning.
+
+### Added
+
+- **Tool reference** (#11): [docs/tools.md](docs/tools.md) gives each of the
+  seven tools its arguments with their ranges, the fields of its result, an
+  example, what a notebook filter changes, and the errors the server writes
+  with what each means.
+- **Configuration guide** (#11): [docs/configuration.md](docs/configuration.md)
+  lists all 22 settings in one place with their defaults, says where the server
+  reads them from and in which order (a `serve` option, the environment,
+  `--env-file`, a `.env` above the installed server, the default), and
+  describes the three commands and their exit codes.
+- **Troubleshooting** (#11): [docs/troubleshooting.md](docs/troubleshooting.md)
+  goes from what you see (a client that can't start the server, a tool's error,
+  a missing note, a refused start in HTTP mode) to the cause and the fix.
+- **PARA note templates** (#11): [templates/](templates/README.md) has a
+  project, an area, a resource and a weekly review as plain Markdown notes to
+  import into Joplin by hand. They work on their own, with Joplin's Templates
+  plugin, and as something to ask the assistant to fill in. The server never
+  installs them.
+- **A smoke test of the package as users run it** (#11):
+  [`scripts/smoke.py`](scripts/smoke.py) starts the server with `uvx`, talks MCP
+  to it over stdio and HTTP, and checks the tool list, a tool call with Joplin
+  down and `/healthz`, with no Joplin needed. CI runs it against the built
+  wheel on Linux, macOS and Windows, and it blocks a release like every other
+  check. `--live` also reads from a running Joplin and `--semantic` loads the
+  embedding stack.
+- **Python 3.14 and 3.15** (#11) are tested in CI and listed in the package
+  metadata, next to 3.11 to 3.13.
+- **The test suite runs on Windows in CI** (#11), next to Linux and macOS. Two
+  tests compared a path as text with `/` separators and failed there; they now
+  compare paths.
+
+### Changed
+
+- **The installation guide is a guide** (#11):
+  [docs/install.md](docs/install.md) was a stub. It now covers turning on
+  Joplin's local API, Claude Code, Claude Desktop, Cursor and any other client,
+  the options, which Python is needed, updating, and installing without `uvx`.
+- **The semantic-search commands now say `--python 3.13`** (#11). The embedding
+  runtime (`onnxruntime`) has no build for Python 3.15 yet, and on a computer
+  whose own Python is 3.15
+  `uvx --from "second-brain-joplin[semantic]" …` did not fail: it installed
+  0.2.0, the newest release from before the `semantic` extra existed, with only
+  a one-line warning that a client never shows.
+  The base install is not affected
+  ([Which Python](docs/install.md#which-python)).
+- **Package metadata** (#11): the status is Production/Stable, and the project
+  links include the documentation and this changelog.
+
 ## [0.5.0] — Write Workflow
 
 Decide what the AI can reach, and where it can write. A notebook filter
@@ -267,7 +327,8 @@ Initial project skeleton — the MCP server starts and all tools are stubbed.
 - Documentation: install, notebook structure (PARA), project management,
   releasing runbook, security policy, and an inspiration/reference note.
 
-[Unreleased]: https://github.com/jomkz/second-brain-joplin/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/jomkz/second-brain-joplin/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.5.0...v1.0.0
 [0.5.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.2.0...v0.3.0
