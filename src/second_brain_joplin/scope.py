@@ -100,6 +100,17 @@ class _Notebooks:
             )
         return matches[0]
 
+    def rooted(self) -> set[str]:
+        """Every notebook whose chain of parents ends at a top-level notebook.
+
+        Leaves out a notebook whose parent is missing from the list, and a loop of
+        notebooks that contain each other: nobody can say what those sit under.
+        """
+        found: set[str] = set()
+        for top in self._children.get("", []):
+            found |= self.subtree(top)
+        return found
+
     def subtree(self, root: str) -> set[str]:
         """``root`` and every notebook under it."""
         found: set[str] = set()
@@ -129,7 +140,9 @@ def resolve_scope(
     for entry in exclude:
         hidden |= notebooks.subtree(notebooks.find(EXCLUDE_VAR, entry))
     if not include:
-        return NotebookScope(frozenset(notebooks.ids - hidden))
+        # Only what provably isn't under a hidden notebook: one that can't be
+        # traced to the top might be, so it stays hidden.
+        return NotebookScope(frozenset(notebooks.rooted() - hidden))
     shown: set[str] = set()
     for entry in include:
         root = notebooks.find(INCLUDE_VAR, entry)
@@ -175,8 +188,22 @@ def resolve_write_targets(
     )
 
 
+def refuse_blank_filter(settings: Settings) -> None:
+    """Raise if a filter variable is set but lists no notebook.
+
+    Set to nothing, ``SBJ_NOTEBOOKS`` could mean "show none" or "no filter". The
+    second reading shows everything, so neither is assumed.
+    """
+    if settings.blank_filter_vars:
+        names = " and ".join(settings.blank_filter_vars)
+        raise NotebookFilterError(
+            f"{names}: set, but lists no notebook; list at least one, or remove the variable"
+        )
+
+
 def scope_of(settings: Settings, folders: Sequence[JsonDict]) -> NotebookScope:
     """Resolve the configured filter against notebooks already fetched."""
+    refuse_blank_filter(settings)
     return resolve_scope(settings.notebooks, settings.exclude_notebooks, folders)
 
 
@@ -208,6 +235,10 @@ async def check_at_startup(settings: Settings) -> None:
     wrong, which keeps the server's start independent of Joplin's without ever
     failing open.
     """
+    refuse_blank_filter(settings)  # wrong whatever Joplin says, so it needn't be asked
+    if not settings.notebook_filter_set:
+        # Said out loud, so a misspelt variable name doesn't pass for a filter.
+        logger.info("no notebook filter is set: every notebook is readable")
     if not (settings.notebook_filter_set or settings.writes_enabled):
         return
     client = JoplinClient(settings)

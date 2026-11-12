@@ -2,17 +2,18 @@
 
 import asyncio
 import re
+import threading
 
 import httpx
 import pytest
 import respx
-from fakes import FakeEmbedder, FakeJoplin, FakeVectorIndex
+from fakes import FakeEmbedder, FakeJoplin, FakeVectorIndex, SharedVectorIndex
 
 from second_brain_joplin.config import Settings
 from second_brain_joplin.errors import JoplinAPIError, JoplinConnectionError, NotebookFilterError
 from second_brain_joplin.joplin_client import JoplinClient
 from second_brain_joplin.semantic.service import SemanticSearchService
-from second_brain_joplin.semantic.types import Embedder, VectorIndex
+from second_brain_joplin.semantic.types import ChunkRecord, Embedder, VectorIndex
 
 BASE_URL = "http://localhost:41184"
 
@@ -389,16 +390,92 @@ async def test_search_without_auto_sync_or_a_filter_does_not_ask_joplin() -> Non
 
 
 @respx.mock
-async def test_prune_reports_what_it_dropped_and_skips_an_empty_index() -> None:
+async def test_prune_reports_what_it_dropped() -> None:
     joplin, _work, journal, plan, _diary = _filtered_vault()
     index = FakeVectorIndex()
     service = _service(index=index, exclude_notebooks=("Journal",))
 
-    assert await service.prune() == 0
-    assert joplin.requests == []  # nothing indexed, nothing to check
+    assert await service.prune() == 0  # an empty index has nothing to drop
 
     await service.sync()
     assert await service.prune() == 0
     joplin.move(plan, journal)
     assert await service.prune() == 1
     assert index.note_versions() == {}
+
+
+# -- an index other processes write to ---------------------------------------------
+
+
+def _intruder(note_id: str, title: str, text: str) -> ChunkRecord:
+    """A chunk as an unfiltered process would have written it for a hidden note."""
+    return ChunkRecord(
+        chunk_id=f"{note_id}::0",
+        note_id=note_id,
+        title=title,
+        updated_time="100",
+        chunk_index=0,
+        text=text,
+        embedding=FakeEmbedder().embed_documents([text])[0],
+    )
+
+
+@pytest.mark.parametrize("auto_sync", [True, False])
+@respx.mock
+async def test_a_hidden_note_another_process_indexed_is_never_returned(auto_sync: bool) -> None:
+    """The index is a shared file: a reindex run without the server's filter embeds
+    everything into it. A filtered search must return only what Joplin says is visible."""
+    _joplin, _work, _journal, plan, diary = _filtered_vault()
+    index = SharedVectorIndex()
+    service = _service(auto_sync=auto_sync, index=index, exclude_notebooks=("Journal",))
+    await service.sync()
+    # The other process writes after this one has tidied the index, before it queries.
+    index.intruders = [_intruder(diary, "Diary", f"apple {SECRET}")]
+
+    results = await service.search(f"apple {SECRET}", limit=5)
+
+    assert [r.id for r in results] == [plan]
+    assert all(SECRET not in r.excerpt and r.title != "Diary" for r in results)
+    assert diary in index.note_versions()  # it really was in the index when queried
+
+
+@respx.mock
+async def test_without_a_filter_whatever_is_indexed_is_returned() -> None:
+    _joplin, _work, _journal, plan, diary = _filtered_vault()
+    results = await _service(index=SharedVectorIndex()).search("apple", limit=5)
+    assert {r.id for r in results} == {plan, diary}
+
+
+class _SlowEmbedder(FakeEmbedder):
+    """An embedder whose document embedding blocks until released, like a long rebuild."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.started = threading.Event()
+        self.release = threading.Event()
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        self.started.set()
+        assert self.release.wait(timeout=5)
+        return super().embed_documents(texts)
+
+
+@respx.mock
+async def test_a_search_without_auto_sync_does_not_wait_behind_a_running_sync() -> None:
+    joplin, work, _journal, plan, _diary = _filtered_vault()
+    index = FakeVectorIndex()
+    await _service(index=index, exclude_notebooks=("Journal",)).sync()
+
+    joplin.note("New", "apple new", work)  # gives the next sync something slow to embed
+    slow = _SlowEmbedder()
+    service = _service(auto_sync=False, index=index, embedder=slow, exclude_notebooks=("Journal",))
+    syncing = asyncio.create_task(service.sync())
+    await asyncio.to_thread(slow.started.wait, 5)
+    try:
+        # The sync holds the index; the search answers from what is there, filtered.
+        results = await asyncio.wait_for(service.search("apple plan"), timeout=2)
+        assert [r.id for r in results] == [plan]
+        assert not syncing.done()
+    finally:
+        slow.release.set()
+        await syncing

@@ -31,7 +31,10 @@ that `joplin_read` now takes Joplin ids only
   hidden note to its index. The filter is checked against Joplin on every call,
   so a moved note or a new sub-notebook takes effect at once. A filter that
   doesn't match Joplin's notebooks never shows everything instead: `serve`
-  refuses to start, and every tool refuses if it stops matching later
+  refuses to start, and every tool refuses if it stops matching later. The same
+  goes for a filter variable that is set but lists nothing. A semantic search
+  returns only notes that are visible at that moment, whatever the shared index
+  file holds, and `reindex` says whether it ran with a filter
   ([guide](docs/remote-access.md#choosing-which-notebooks-are-exposed)).
 - **`second-brain-joplin notebooks`** (#59): lists every notebook with its id
   and note count, marked hidden, visible or writable under the current
@@ -45,9 +48,12 @@ that `joplin_read` now takes Joplin ids only
   filter hides, and every notebook that can't receive one is refused with the
   same answer. The check on each note is the client's approval prompt, so the
   call carries the note in readable form; Claude Code is told to prompt on every
-  call. Each created note is logged by id, never by title or text, and a note
-  whose confirmation from Joplin is lost is reported as created instead of being
-  made twice ([guide](docs/remote-access.md#creating-notes)).
+  call. Each attempt is logged by id, never by title or text. When Joplin fails
+  the tool says which of three things happened: nothing was created, the note
+  was created although the answer got lost, or it can't be known yet. The same
+  request repeated within ten minutes returns the note already made
+  (`already_created`) instead of a second copy
+  ([guide](docs/remote-access.md#creating-notes)).
 
 ### Changed
 
@@ -56,6 +62,12 @@ that `joplin_read` now takes Joplin ids only
   before Joplin is called.
 - **`serve` builds the server after reading `--env-file` and `.env`** (#10), so
   those files decide whether the write tool exists.
+- **A variable set to nothing no longer beats `--env-file` or `.env`** (#59).
+  An empty `SBJ_EXCLUDE_NOTEBOOKS` in a service's environment would otherwise
+  silently cancel the filter written in the file. A variable set to a value
+  still wins.
+- **HTTP mode holds FastMCP's loggers at INFO** (#10). At DEBUG they print each
+  tool call's arguments, which are note content.
 
 ### Fixed
 

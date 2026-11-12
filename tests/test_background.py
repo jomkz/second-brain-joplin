@@ -266,10 +266,21 @@ def test_reindex_command_prints_counts(
 
     monkeypatch.setattr(cli, "load_dotenv", lambda *a, **k: False)
     monkeypatch.setattr(cli, "run_reindex", fake_run_reindex)
+    monkeypatch.delenv("SBJ_NOTEBOOKS", raising=False)
+    monkeypatch.delenv("SBJ_EXCLUDE_NOTEBOOKS", raising=False)
     cli.main(["reindex", "--full"])
     assert calls == [True]
-    assert capsys.readouterr().out.strip() == (
-        "added=1 updated=2 deleted=3 total=4 model=fake-model"
+    assert capsys.readouterr().out.splitlines() == [
+        "added=1 updated=2 deleted=3 total=4 model=fake-model",
+        # The index is shared with the server, so the command says what it indexed.
+        "Notebook filter: not set; every note is indexed. If the server has one, "
+        "run this with the server's --env-file.",
+    ]
+
+    monkeypatch.setenv("SBJ_EXCLUDE_NOTEBOOKS", "Journal")
+    cli.main(["reindex"])
+    assert capsys.readouterr().out.splitlines()[1] == (
+        "Notebook filter: set; only visible notes are indexed."
     )
 
 

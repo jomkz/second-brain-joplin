@@ -100,10 +100,15 @@ class ReindexResult(BaseModel):
 
 
 class CreatedNote(BaseModel):
-    """A note the write tool just created: where it is and what it is called."""
+    """A note the write tool created: where it is and what it is called.
+
+    ``already_created`` is True when an identical request made this note in the
+    last few minutes: nothing new was written, and this is that note.
+    """
 
     id: str
     title: str
     notebook_id: str
     notebook: str
     created_time: str | None = None
+    already_created: bool = False

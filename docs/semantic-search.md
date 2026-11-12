@@ -68,9 +68,13 @@ the next sync rebuilds the index from scratch.
 - **Persistence.** The index lives at `SBJ_INDEX_DIR` and survives restarts.
 - **Notebook filter.** With `SBJ_NOTEBOOKS` or `SBJ_EXCLUDE_NOTEBOOKS` set
   ([remote-access.md](remote-access.md#choosing-which-notebooks-are-exposed)),
-  only visible notes are indexed. A note that becomes hidden is dropped at the
-  next sync, before anything new is embedded, and a search drops such notes
-  first even when `SBJ_SEMANTIC_AUTO_SYNC` is off.
+  only visible notes are indexed, and a note that becomes hidden is dropped at
+  the next sync, before anything new is embedded. Every search also asks Joplin
+  which notes are visible now and returns only those, even when
+  `SBJ_SEMANTIC_AUTO_SYNC` is off. The index file is shared by every process
+  with the same `SBJ_INDEX_DIR`, so run `second-brain-joplin reindex` with the
+  same settings as the server (`--env-file`); the command says whether a filter
+  was set.
 - **A failed sync leaves the index alone.** A sync asks Joplin for its notes
   before it touches the index, so a rebuild started while Joplin is down doesn't
   empty it.

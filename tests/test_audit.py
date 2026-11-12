@@ -12,11 +12,17 @@ import httpx
 import pytest
 import respx
 from fakes import FakeEmbedder, FakeVectorIndex
+from fastmcp import Client
 from fastmcp.server.auth import StaticTokenVerifier
 from fastmcp.utilities.tests import ASGIServer, asgi_server
 from mcp.shared.exceptions import MCPError
 
-from second_brain_joplin.audit import QUIET_LOGGERS, configure_logging, rate_limit
+from second_brain_joplin.audit import (
+    NO_DEBUG_LOGGERS,
+    QUIET_LOGGERS,
+    configure_logging,
+    rate_limit,
+)
 from second_brain_joplin.config import Settings
 from second_brain_joplin.remote import HttpOptions, http_app_kwargs
 from second_brain_joplin.semantic.service import SEARCH_CONCURRENCY, SemanticSearchService
@@ -34,7 +40,7 @@ TOKENS = {
 
 @pytest.fixture(autouse=True)
 def _restore_loggers() -> Any:
-    names = ("second_brain_joplin", *QUIET_LOGGERS)
+    names = ("second_brain_joplin", *QUIET_LOGGERS, *NO_DEBUG_LOGGERS)
     saved = {n: (logging.getLogger(n).level, list(logging.getLogger(n).handlers)) for n in names}
     yield
     for name, (level, handlers) in saved.items():
@@ -75,6 +81,46 @@ def test_configure_logging_quietens_url_loggers_and_is_idempotent() -> None:
         assert logging.getLogger(name).level == logging.WARNING
     ours = [h for h in logging.getLogger("second_brain_joplin").handlers if getattr(h, "_sbj", 0)]
     assert len(ours) == 1
+
+
+def test_configure_logging_holds_argument_printing_loggers_at_info() -> None:
+    for name in NO_DEBUG_LOGGERS:
+        logging.getLogger(name).setLevel(logging.DEBUG)
+    configure_logging()
+    for name in NO_DEBUG_LOGGERS:
+        assert logging.getLogger(name).level == logging.INFO
+    # A quieter level is the operator's choice and is left alone.
+    logging.getLogger("fastmcp").setLevel(logging.ERROR)
+    configure_logging()
+    assert logging.getLogger("fastmcp").level == logging.ERROR
+
+
+@respx.mock
+async def test_fastmcp_at_debug_would_print_tool_arguments() -> None:
+    """The control: at DEBUG, FastMCP logs each call with its arguments, which are
+    note content. configure_logging keeps its loggers out of DEBUG."""
+    _mock_search()
+    printed: list[str] = []
+
+    class Collect(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            printed.append(record.getMessage())
+
+    fastmcp_logger = logging.getLogger("fastmcp")
+    fastmcp_logger.addHandler(Collect(level=logging.DEBUG))
+
+    async def search() -> None:
+        async with Client(create_server()) as client:
+            await client.call_tool("joplin_search", {"query": QUERY})
+
+    fastmcp_logger.setLevel(logging.DEBUG)
+    await search()
+    assert any(QUERY in line for line in printed)  # the leak is real
+
+    printed.clear()
+    configure_logging()
+    await search()
+    assert not any(QUERY in line for line in printed)
 
 
 @respx.mock

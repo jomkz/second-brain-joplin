@@ -275,3 +275,25 @@ async def test_create_note_treats_any_2xx_answer_as_created(
 ) -> None:
     respx.post(f"{BASE_URL}/notes").mock(return_value=answer)
     assert await client.create_note("a" * 32, "T", "B", "b" * 32) == {}
+
+
+@pytest.mark.parametrize(
+    ("error", "maybe_sent"),
+    [
+        (httpx.ConnectError("refused"), False),
+        (httpx.ConnectTimeout("no route"), False),
+        (httpx.PoolTimeout("no free connection"), False),
+        (httpx.ReadTimeout("no answer"), True),
+        (httpx.WriteTimeout("stalled"), True),
+        (httpx.ReadError("reset"), True),
+        (httpx.RemoteProtocolError("garbage"), True),
+    ],
+)
+@respx.mock
+async def test_a_connection_error_says_whether_the_request_may_have_been_sent(
+    client: JoplinClient, error: Exception, maybe_sent: bool
+) -> None:
+    respx.post(f"{BASE_URL}/notes").mock(side_effect=error)
+    with pytest.raises(JoplinConnectionError) as raised:
+        await client.create_note("a" * 32, "T", "B", "b" * 32)
+    assert raised.value.maybe_sent is maybe_sent

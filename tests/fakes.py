@@ -96,6 +96,22 @@ class FakeVectorIndex:
         self._records = {}
 
 
+class SharedVectorIndex(FakeVectorIndex):
+    """An index another process writes to: ``intruders`` appear just before each query.
+
+    The real index is a file any process on the machine can sync into with its own
+    settings, so a search can't assume it holds only what this process put there.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.intruders: list[ChunkRecord] = []
+
+    def query(self, embedding: list[float], k: int) -> list[QueryHit]:
+        self.upsert(self.intruders)
+        return super().query(embedding, k)
+
+
 class FakeJoplin:
     """An in-memory Joplin Data API behind respx: notebooks, notes, search, paging.
 
@@ -124,6 +140,12 @@ class FakeJoplin:
         self.post_loses_response = False
         self.post_ignores_id = False  # hand out an id of Joplin's own instead
         self.down_after_post = False  # go down right after the next POST
+        self.post_refused = False  # the connection for a POST is refused: nothing is sent
+        # The client times out while Joplin is still saving: the note isn't there
+        # until land_late() is called.
+        self.post_saves_late = False
+        self.post_errors_after_saving = False  # the note is saved, the answer is HTTP 500
+        self._late: list[dict[str, Any]] = []
         self._next_id = 1
 
     def _new_id(self) -> str:
@@ -153,6 +175,12 @@ class FakeJoplin:
     def move(self, note_id: str, notebook: str) -> None:
         """Move a note to another notebook, leaving its ``updated_time`` alone."""
         self.notes[note_id]["parent_id"] = notebook
+
+    def land_late(self) -> None:
+        """Finish saving the notes whose POST timed out under ``post_saves_late``."""
+        for note in self._late:
+            self.notes[note["id"]] = note
+        self._late.clear()
 
     def count(self, path: str) -> int:
         """How many requests were made to exactly ``path``."""
@@ -217,8 +245,8 @@ class FakeJoplin:
 
     def _create(self, request: httpx.Request) -> httpx.Response:
         self.requests.append(f"POST {request.url.path}")
-        if self.down:
-            raise httpx.ConnectError("Joplin is down")
+        if self.down or self.post_refused:
+            raise httpx.ConnectError("connection refused")
         payload = json.loads(request.content)
         self.posts.append(payload)
         if self.post_status is not None:
@@ -232,9 +260,14 @@ class FakeJoplin:
             "created_time": 1_700_000_000_000,
             "updated_time": 1_700_000_000_000,
         }
+        if self.post_saves_late:
+            self._late.append(note)
+            raise httpx.ReadTimeout("still saving")
         self.notes[note_id] = note
         if self.down_after_post:
             self.down = True
         if self.post_loses_response:
             raise httpx.ReadTimeout("the answer never arrived")
+        if self.post_errors_after_saving:
+            return httpx.Response(500)
         return httpx.Response(200, json=note)

@@ -115,13 +115,27 @@ def test_from_env_reads_the_notebook_filter(monkeypatch: pytest.MonkeyPatch) -> 
     assert settings.notebook_filter_set is True
 
 
-@pytest.mark.parametrize("raw", ["", "   ", ",", " , ,"])
-def test_an_empty_notebook_list_is_no_filter(monkeypatch: pytest.MonkeyPatch, raw: str) -> None:
-    monkeypatch.setenv("SBJ_NOTEBOOKS", raw)
+def test_unset_filter_variables_are_no_filter(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("SBJ_NOTEBOOKS", raising=False)
     monkeypatch.delenv("SBJ_EXCLUDE_NOTEBOOKS", raising=False)
     settings = Settings.from_env()
-    assert settings.notebooks == ()
+    assert settings.blank_filter_vars == ()
     assert settings.notebook_filter_set is False
+
+
+@pytest.mark.parametrize("name", ["SBJ_NOTEBOOKS", "SBJ_EXCLUDE_NOTEBOOKS"])
+@pytest.mark.parametrize("raw", ["", "   ", ",", " , ,"])
+def test_a_filter_variable_set_to_nothing_is_not_read_as_no_filter(
+    monkeypatch: pytest.MonkeyPatch, name: str, raw: str
+) -> None:
+    """ "Only these: none" and "no filter" are opposite readings; neither is guessed."""
+    monkeypatch.delenv("SBJ_NOTEBOOKS", raising=False)
+    monkeypatch.delenv("SBJ_EXCLUDE_NOTEBOOKS", raising=False)
+    monkeypatch.setenv(name, raw)
+    settings = Settings.from_env()
+    assert settings.notebooks == () and settings.exclude_notebooks == ()
+    assert settings.blank_filter_vars == (name,)
+    assert settings.notebook_filter_set is True  # so that resolving it refuses
 
 
 def test_either_list_alone_sets_the_filter(monkeypatch: pytest.MonkeyPatch) -> None:

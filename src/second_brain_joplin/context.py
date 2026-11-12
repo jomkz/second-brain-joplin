@@ -14,6 +14,7 @@ from fastmcp import Context
 
 from .config import Settings
 from .joplin_client import JoplinClient
+from .recent import RecentNotes
 from .scope import NotebookScope, WriteTargets, current_scope, current_write_targets
 from .semantic.service import SemanticSearchService
 
@@ -27,6 +28,8 @@ class AppContext:
     # True in HTTP mode: tools that would run past a remote client's time limit
     # (a full reindex) refuse there and point at the CLI instead.
     remote: bool = False
+    # What the write tool sent lately, so a repeated request isn't a second note.
+    recent_notes: RecentNotes = field(default_factory=RecentNotes, repr=False)
     _semantic: SemanticSearchService | None = field(default=None, init=False, repr=False)
 
     async def scope(self) -> NotebookScope:

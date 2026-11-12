@@ -369,3 +369,18 @@ async def test_a_failed_semantic_sync_does_not_log_the_filter_detail_twice(
     monkeypatch.setenv("SBJ_NOTEBOOKS", "Wrok")
     await _error("joplin_semantic_search", query="apple")
     assert caplog.text.count("no notebook is titled 'Wrok'") == 1
+
+
+@pytest.mark.parametrize(("tool", "args"), ALL_TOOLS)
+async def test_every_tool_refuses_while_a_filter_variable_lists_nothing(
+    tool: str,
+    args: dict[str, Any],
+    vault: Vault,
+    index: FakeVectorIndex,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """SBJ_NOTEBOOKS set to nothing is not "no filter": that reading shows everything."""
+    monkeypatch.setenv("SBJ_NOTEBOOKS", "")
+    assert await _error(tool, **args) == NOTEBOOK_FILTER_MESSAGE
+    assert set(vault.joplin.requests) <= {"/folders"}
+    assert index.note_versions() == {}

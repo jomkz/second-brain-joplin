@@ -115,8 +115,9 @@ async def test_the_tool_declares_what_it_does_and_asks_for_a_prompt_every_time()
     assert set(tool.input_schema["required"]) == {"title", "body", "notebook"}
 
 
+@pytest.mark.parametrize("transport_args", [[], ["--transport", "http", "--no-auth"]])
 def test_serve_registers_the_tool_from_an_env_file(
-    tmp_path: Any, joplin: FakeJoplin, monkeypatch: pytest.MonkeyPatch
+    transport_args: list[str], tmp_path: Any, joplin: FakeJoplin, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The server is built after the env file is read, so the file can turn writes on."""
     joplin.notebook("Inbox")
@@ -129,12 +130,20 @@ def test_serve_registers_the_tool_from_an_env_file(
     monkeypatch.setattr(FastMCP, "run", lambda self, *a, **k: built.append(self))
     monkeypatch.setattr(cli, "run_http", lambda server, options: built.append(server))
 
-    cli.main(["serve", "--env-file", str(env_file)])
-    cli.main(["serve", "--env-file", str(env_file), "--transport", "http", "--no-auth"])
+    cli.main(["serve", "--env-file", str(env_file), *transport_args])
 
-    assert len(built) == 2
-    for server in built:
-        assert "joplin_create_note" in asyncio.run(_tool_names(server))
+    assert len(built) == 1
+    assert "joplin_create_note" in asyncio.run(_tool_names(built[0]))
+
+
+def test_serve_without_the_setting_builds_a_read_only_server(
+    joplin: FakeJoplin, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(cli, "load_dotenv", lambda *a, **k: False)
+    built: list[FastMCP] = []
+    monkeypatch.setattr(FastMCP, "run", lambda self, *a, **k: built.append(self))
+    cli.main(["serve"])
+    assert "joplin_create_note" not in asyncio.run(_tool_names(built[0]))
 
 
 # -- creating a note -------------------------------------------------------------
@@ -367,7 +376,11 @@ async def test_a_wrong_write_list_does_not_stop_reads(
     assert vault.joplin.count("/folders") == 0
 
 
-# -- when Joplin fails -----------------------------------------------------------
+# -- when Joplin fails ------------------------------------------------------------
+#
+# Three outcomes, and the tool must not confuse them: nothing was created (say why),
+# the note was created (say so, even if Joplin's answer got lost), or it can't be
+# known yet (say that, and make a repeat safe).
 
 
 async def test_joplin_refusing_the_note_is_an_error_and_nothing_is_created(
@@ -375,8 +388,32 @@ async def test_joplin_refusing_the_note_is_an_error_and_nothing_is_created(
 ) -> None:
     monkeypatch.setenv("SBJ_WRITE_NOTEBOOKS", "Inbox")
     vault.joplin.post_status = 500
-    assert "HTTP 500" in await _refused(notebook="Inbox")
+    message = await _refused(notebook="Inbox")
+    assert "HTTP 500" in message
+    assert "may or may not" not in message  # Joplin answered, and the note isn't there
     assert len(vault.joplin.notes) == 1
+
+
+async def test_a_refused_connection_is_a_plain_failure_not_a_maybe(
+    vault: Vault, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SBJ_WRITE_NOTEBOOKS", "Inbox")
+    vault.joplin.post_refused = True  # the notebook list was read; the POST never left
+    message = await _refused(notebook="Inbox")
+    assert "unreachable" in message
+    assert "may or may not" not in message
+    assert vault.joplin.posts == []
+    # Nothing was sent, so nothing is asked afterwards either.
+    assert vault.joplin.requests[-1] == "POST /notes"
+
+
+async def test_joplin_down_before_the_notebook_list_is_reported(
+    vault: Vault, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SBJ_WRITE_NOTEBOOKS", "Inbox")
+    vault.joplin.down = True
+    assert "unreachable" in await _refused(notebook="Inbox")
+    assert vault.joplin.requests == ["/folders"]  # it never got as far as writing
 
 
 async def test_a_lost_answer_is_still_a_created_note_not_a_duplicate(
@@ -391,17 +428,76 @@ async def test_a_lost_answer_is_still_a_created_note_not_a_duplicate(
     assert result["id"] in vault.joplin.notes
     assert len(vault.joplin.posts) == 1  # no second attempt
     assert result["created_time"] is None  # Joplin's answer, and with it the time, was lost
+    assert result["already_created"] is False
 
 
-async def test_when_it_cant_tell_whether_the_note_landed_it_says_so(
+async def test_an_error_answer_for_a_note_that_was_saved_is_still_a_created_note(
+    vault: Vault, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SBJ_WRITE_NOTEBOOKS", "Inbox")
+    vault.joplin.post_errors_after_saving = True
+    result = await _create(notebook="Inbox")
+    assert result["id"] in vault.joplin.notes
+
+
+async def test_a_timeout_while_joplin_is_still_saving_is_a_maybe_and_a_repeat_is_safe(
+    vault: Vault, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.setenv("SBJ_WRITE_NOTEBOOKS", "Inbox")
+    vault.joplin.post_saves_late = True
+    args = {"title": "Call with Sam", "body": "notes", "notebook": "Inbox"}
+
+    async with Client(_server()) as client:
+        with pytest.raises(ToolError) as raised:
+            await client.call_tool("joplin_create_note", args)
+        # Not there when the tool looked, so it must not claim the note failed.
+        assert "may or may not have been created" in str(raised.value)
+        assert "won't make a second copy" in str(raised.value)
+        assert "note create unconfirmed" in caplog.text
+
+        vault.joplin.land_late()  # Joplin finishes saving
+        vault.joplin.post_saves_late = False
+        again = (await client.call_tool("joplin_create_note", args)).structured_content
+
+    assert again["already_created"] is True
+    assert again["id"] == vault.joplin.posts[0]["id"]
+    assert len(vault.joplin.posts) == 1  # the repeat found the note; it sent nothing
+    assert len(vault.joplin.notes) == 2  # the one already in Work, and this one
+
+
+async def test_a_maybe_that_never_landed_is_created_by_the_repeat(
+    vault: Vault, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SBJ_WRITE_NOTEBOOKS", "Inbox")
+    vault.joplin.post_saves_late = True
+    args = {"title": "Call with Sam", "body": "notes", "notebook": "Inbox"}
+    async with Client(_server()) as client:
+        with pytest.raises(ToolError):
+            await client.call_tool("joplin_create_note", args)
+        vault.joplin.post_saves_late = False  # the first attempt is never saved
+        again = (await client.call_tool("joplin_create_note", args)).structured_content
+    assert again["already_created"] is False
+    assert again["id"] == vault.joplin.posts[1]["id"] != vault.joplin.posts[0]["id"]
+    assert again["id"] in vault.joplin.notes
+
+
+async def test_when_joplin_stops_answering_after_the_post_it_is_a_maybe(
     vault: Vault, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("SBJ_WRITE_NOTEBOOKS", "Inbox")
     vault.joplin.post_loses_response = True
-    vault.joplin.down_after_post = True  # and then Joplin stops answering at all
+    vault.joplin.down_after_post = True  # the answer is lost, and so is the follow-up
     message = await _refused(notebook="Inbox")
     assert "may or may not have been created" in message
-    assert "look in Joplin before trying again" in message
+
+
+async def test_an_error_answer_and_no_way_to_check_is_a_maybe(
+    vault: Vault, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SBJ_WRITE_NOTEBOOKS", "Inbox")
+    vault.joplin.post_errors_after_saving = True
+    vault.joplin.down_after_post = True
+    assert "may or may not have been created" in await _refused(notebook="Inbox")
 
 
 async def test_a_rejected_token_is_reported_as_such(
@@ -414,23 +510,85 @@ async def test_a_rejected_token_is_reported_as_such(
     assert vault.joplin.requests[-1] == "POST /notes"
 
 
-async def test_joplin_down_is_reported_and_nothing_is_written(
-    vault: Vault, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setenv("SBJ_WRITE_NOTEBOOKS", "Inbox")
-    vault.joplin.down = True
-    assert "unreachable" in await _refused(notebook="Inbox")
-    assert vault.joplin.posts == []
-
-
 async def test_an_id_of_joplins_own_is_the_one_reported(
     vault: Vault, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("SBJ_WRITE_NOTEBOOKS", "Inbox")
     vault.joplin.post_ignores_id = True
-    result = await _create(notebook="Inbox")
+    args = {"title": "T", "body": "B", "notebook": "Inbox"}
+    async with Client(_server()) as client:
+        result = (await client.call_tool("joplin_create_note", args)).structured_content
+        again = (await client.call_tool("joplin_create_note", args)).structured_content
     assert result["id"] != vault.joplin.posts[0]["id"]
     assert result["id"] in vault.joplin.notes
+    assert (again["id"], again["already_created"]) == (result["id"], True)  # found by that id
+
+
+# -- the same request again -------------------------------------------------------
+
+
+async def test_an_identical_request_soon_after_returns_the_same_note(
+    vault: Vault, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SBJ_WRITE_NOTEBOOKS", "*")
+    args = {"title": "Call with Sam", "body": "notes", "notebook": "Inbox"}
+    async with Client(_server()) as client:
+        first = (await client.call_tool("joplin_create_note", args)).structured_content
+        second = (await client.call_tool("joplin_create_note", args)).structured_content
+        # Anything different is a different note: the text, the title, the notebook.
+        others = [
+            (await client.call_tool("joplin_create_note", {**args, **change})).structured_content
+            for change in ({"body": "notes!"}, {"title": "Call with Sam 2"}, {"notebook": "Work"})
+        ]
+
+    assert (first["already_created"], second["already_created"]) == (False, True)
+    assert second["id"] == first["id"]
+    assert [other["already_created"] for other in others] == [False, False, False]
+    assert len({first["id"], *(other["id"] for other in others)}) == 4
+    assert len(vault.joplin.posts) == 4
+
+
+async def test_a_repeat_after_the_note_was_deleted_creates_it_again(
+    vault: Vault, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SBJ_WRITE_NOTEBOOKS", "Inbox")
+    args = {"title": "Call with Sam", "body": "notes", "notebook": "Inbox"}
+    async with Client(_server()) as client:
+        first = (await client.call_tool("joplin_create_note", args)).structured_content
+        del vault.joplin.notes[first["id"]]  # the user threw it away and asks again
+        second = (await client.call_tool("joplin_create_note", args)).structured_content
+    assert second["already_created"] is False
+    assert second["id"] != first["id"] and second["id"] in vault.joplin.notes
+
+
+async def test_a_repeat_that_cannot_check_the_earlier_note_does_not_make_another(
+    vault: Vault, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SBJ_WRITE_NOTEBOOKS", "Inbox")
+    args = {"title": "Call with Sam", "body": "notes", "notebook": "Inbox"}
+    async with Client(_server()) as client:
+        await client.call_tool("joplin_create_note", args)
+        vault.joplin.note_status = 500  # Joplin can't say whether that note is still there
+        with pytest.raises(ToolError, match="HTTP 500"):
+            await client.call_tool("joplin_create_note", args)
+    assert len(vault.joplin.posts) == 1  # better an error than a second copy
+
+
+async def test_a_failed_request_is_not_remembered(
+    vault: Vault, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SBJ_WRITE_NOTEBOOKS", "Inbox")
+    args = {"title": "Call with Sam", "body": "notes", "notebook": "Inbox"}
+    async with Client(_server()) as client:
+        vault.joplin.post_status = 500
+        with pytest.raises(ToolError):
+            await client.call_tool("joplin_create_note", args)
+        vault.joplin.post_status = None
+        requests_before = len(vault.joplin.requests)
+        result = (await client.call_tool("joplin_create_note", args)).structured_content
+    assert result["already_created"] is False
+    # Notebook list, then the POST: no look-up of an id that was never created.
+    assert vault.joplin.requests[requests_before:] == ["/folders", "POST /notes"]
 
 
 # -- the record it leaves --------------------------------------------------------
@@ -442,20 +600,36 @@ async def test_each_created_note_is_logged_by_id_with_no_content(
     caplog.set_level(logging.INFO, logger="second_brain_joplin")
     monkeypatch.setenv("SBJ_WRITE_NOTEBOOKS", "Inbox")
     result = await _create(notebook="Inbox", title="Secret title", body="secret body text")
-    assert f"note created id={result['id']} notebook={vault.inbox} caller=anonymous" in caplog.text
+    for step in ("create sent", "created"):  # before the request goes out, and after
+        line = f"note {step} id={result['id']} notebook={vault.inbox} caller=anonymous"
+        assert line in caplog.text
     assert "tool=joplin_create_note caller=anonymous outcome=ok" in caplog.text
     assert "Secret title" not in caplog.text
     assert "secret body text" not in caplog.text
 
 
-async def test_a_refusal_writes_no_created_line(
+async def test_a_refusal_writes_no_note_line(
     vault: Vault, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
     caplog.set_level(logging.INFO, logger="second_brain_joplin")
     monkeypatch.setenv("SBJ_WRITE_NOTEBOOKS", "Inbox")
     await _refused(notebook="Journal")
-    assert "note created" not in caplog.text
+    assert "note create" not in caplog.text  # refused before anything was sent
     assert "outcome=error" in caplog.text
+
+
+async def test_a_request_joplin_refuses_is_logged_as_sent_then_failed(
+    vault: Vault, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO, logger="second_brain_joplin")
+    monkeypatch.setenv("SBJ_WRITE_NOTEBOOKS", "Inbox")
+    vault.joplin.post_status = 500
+    await _refused(notebook="Inbox", title="Secret title")
+    sent_id = vault.joplin.posts[0]["id"]
+    assert f"note create sent id={sent_id}" in caplog.text
+    assert f"note create failed id={sent_id}" in caplog.text
+    assert "note created" not in caplog.text
+    assert "Secret title" not in caplog.text
 
 
 async def test_the_result_carries_no_note_text(

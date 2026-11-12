@@ -35,6 +35,11 @@ def _env_list(name: str) -> tuple[str, ...]:
     return tuple(entry.strip() for entry in os.environ.get(name, "").split(",") if entry.strip())
 
 
+def _set_but_blank(*names: str) -> tuple[str, ...]:
+    """Those of ``names`` that are in the environment and list nothing."""
+    return tuple(name for name in names if name in os.environ and not _env_list(name))
+
+
 class Settings(BaseModel):
     """Connection, notebook-filter and semantic-search settings for the server.
 
@@ -52,6 +57,9 @@ class Settings(BaseModel):
     # everything under it. Both empty means every notebook is visible.
     notebooks: tuple[str, ...] = ()
     exclude_notebooks: tuple[str, ...] = ()
+    # Filter variables that are set but list no notebook. "Only these: none" and
+    # "no filter" are opposite readings of that, so it is refused, not guessed.
+    blank_filter_vars: tuple[str, ...] = ()
     # Where a note may be created (scope.py); empty means the server is read-only
     # and registers no write tool at all.
     write_notebooks: tuple[str, ...] = ()
@@ -69,8 +77,12 @@ class Settings(BaseModel):
 
     @property
     def notebook_filter_set(self) -> bool:
-        """True when ``SBJ_NOTEBOOKS`` or ``SBJ_EXCLUDE_NOTEBOOKS`` names anything."""
-        return bool(self.notebooks or self.exclude_notebooks)
+        """True when ``SBJ_NOTEBOOKS`` or ``SBJ_EXCLUDE_NOTEBOOKS`` is set at all.
+
+        That includes one set to nothing: resolving the filter then refuses,
+        where treating it as "no filter" would show every notebook.
+        """
+        return bool(self.notebooks or self.exclude_notebooks or self.blank_filter_vars)
 
     @property
     def writes_enabled(self) -> bool:
@@ -85,6 +97,7 @@ class Settings(BaseModel):
             joplin_api_token=os.environ.get("JOPLIN_API_TOKEN", ""),
             notebooks=_env_list("SBJ_NOTEBOOKS"),
             exclude_notebooks=_env_list("SBJ_EXCLUDE_NOTEBOOKS"),
+            blank_filter_vars=_set_but_blank("SBJ_NOTEBOOKS", "SBJ_EXCLUDE_NOTEBOOKS"),
             write_notebooks=_env_list("SBJ_WRITE_NOTEBOOKS"),
             embedding_backend=os.environ.get("SBJ_EMBEDDING_BACKEND", DEFAULT_EMBEDDING_BACKEND),
             embedding_model=os.environ.get("SBJ_EMBEDDING_MODEL", ""),

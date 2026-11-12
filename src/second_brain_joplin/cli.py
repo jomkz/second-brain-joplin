@@ -3,9 +3,10 @@
 import argparse
 import asyncio
 import os
+from collections.abc import Mapping
 from pathlib import Path
 
-from dotenv import dotenv_values, load_dotenv
+from dotenv import dotenv_values, find_dotenv
 
 from . import __version__
 from .audit import configure_logging
@@ -105,6 +106,15 @@ def reindex(args: argparse.Namespace) -> None:
         f"added={stats.added} updated={stats.updated} deleted={stats.deleted} "
         f"total={stats.total} model={stats.model_name}"
     )
+    # The index is shared with the server. Run without the server's settings, this
+    # command has no filter and indexes everything, so say which it was.
+    if Settings.from_env().notebook_filter_set:
+        print("Notebook filter: set; only visible notes are indexed.")
+    else:
+        print(
+            "Notebook filter: not set; every note is indexed. If the server has one, "
+            "run this with the server's --env-file."
+        )
 
 
 def notebook_lines(
@@ -131,9 +141,13 @@ def notebook_lines(
         children_of.setdefault(parent if parent in ids else "", []).append(folder)
 
     lines: list[str] = []
+    listed: set[str] = set()
 
     def walk(parent: str, depth: int) -> None:
         for folder in children_of.get(parent, []):
+            if folder["id"] in listed:  # notebooks that contain each other
+                continue
+            listed.add(folder["id"])
             if scope is None:
                 mark = "?"
             elif targets is not None and targets.title_of(folder["id"]) is not None:
@@ -146,6 +160,11 @@ def notebook_lines(
             walk(folder["id"], depth + 1)
 
     walk("", 0)
+    # Whatever the walk from the top didn't reach (a loop of notebooks) is listed
+    # too: this command must show everything a client could be shown.
+    for folder in folders:
+        if folder["id"] not in listed:
+            walk(folder.get("parent_id", ""), 0)
     return lines
 
 
@@ -179,6 +198,18 @@ def notebooks(_args: argparse.Namespace) -> None:
     print("\n".join(notebook_lines(folders, notes_index, scope, targets)))
 
 
+def _apply_env(values: Mapping[str, str | None]) -> None:
+    """Put ``values`` into the environment, keeping any variable already set to something.
+
+    A variable that is set to nothing doesn't count as set here. Otherwise an
+    empty ``SBJ_NOTEBOOKS`` exported by a shell or a service manager would
+    silently beat the filter written in the file.
+    """
+    for name, value in values.items():
+        if value is not None and not os.environ.get(name):
+            os.environ[name] = value
+
+
 def load_env_file(path: Path) -> None:
     """Load ``KEY=value`` lines from ``path`` into the environment, keeping set ones.
 
@@ -187,9 +218,14 @@ def load_env_file(path: Path) -> None:
     """
     if not path.is_file():
         raise ServeConfigError(f"--env-file {path} does not exist or is not a file")
-    for name, value in dotenv_values(path).items():
-        if value is not None:
-            os.environ.setdefault(name, value)
+    _apply_env(dotenv_values(path))
+
+
+def load_dotenv() -> None:
+    """Load a ``.env`` found from this package's directory upward, by the same rule."""
+    path = find_dotenv()
+    if path:
+        _apply_env(dotenv_values(path))
 
 
 def serve(args: argparse.Namespace) -> None:

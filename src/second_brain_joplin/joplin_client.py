@@ -24,6 +24,15 @@ from .errors import (
 JsonDict = dict[str, Any]
 ItemTest = Callable[[JsonDict], bool]
 
+# Failures that happen before a request is on the wire: no connection was made, or
+# none was free. Anything else may have reached Joplin.
+_NEVER_SENT = (
+    httpx.ConnectError,
+    httpx.ConnectTimeout,
+    httpx.PoolTimeout,
+    httpx.UnsupportedProtocol,
+)
+
 
 class JoplinClient:
     """Async client over the Joplin Data API with typed error mapping."""
@@ -80,12 +89,14 @@ class JoplinClient:
             raise JoplinConnectionError(
                 f"Joplin didn't answer at {self.base_url} within "
                 f"{self._settings.request_timeout:g} seconds — is Joplin Desktop running "
-                "and responsive?"
+                "and responsive?",
+                maybe_sent=not isinstance(exc, _NEVER_SENT),
             ) from exc
         except httpx.TransportError as exc:  # refused, reset, DNS, protocol errors
             raise JoplinConnectionError(
                 f"Joplin is unreachable at {self.base_url} — is Joplin Desktop running "
-                "with the Web Clipper service enabled?"
+                "with the Web Clipper service enabled?",
+                maybe_sent=not isinstance(exc, _NEVER_SENT),
             ) from exc
         self._raise_for_status(response)
         return response

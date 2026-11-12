@@ -38,7 +38,7 @@ Every option falls back to an environment variable, then to its default:
 | `--port` | `SBJ_PORT` | `8775` | |
 | `--path` | `SBJ_HTTP_PATH` | `/mcp` | The MCP endpoint |
 | `--public-url` | `SBJ_PUBLIC_URL` | none | The server's public origin (`https://host`, no path); sign-in needs it |
-| `--env-file PATH` | | none | Loads `KEY=value` lines first; variables already set win. For launchd and other service managers that can't load an env file |
+| `--env-file PATH` | | none | Loads `KEY=value` lines first; variables already set to a value win. For launchd and other service managers that can't load an env file |
 | `--no-auth` | | off | No sign-in, for a local test only (below) |
 
 The HTTP-only flags are refused with `--transport stdio`, so a typo can't
@@ -202,10 +202,11 @@ What a filter changes:
   Joplin's results until `limit` is filled.
 - **`joplin_read`** answers for a hidden note exactly as it does for a note that
   doesn't exist.
-- **Semantic search** never indexes a hidden note, so its text isn't in the
-  on-disk index either. A note that becomes hidden (it moved, its notebook moved,
-  or you changed the filter) is dropped at the next sync, and a search always
-  drops such notes before it answers.
+- **Semantic search** never indexes a hidden note, and drops one that becomes
+  hidden (it moved, its notebook moved, or you changed the filter) at the next
+  sync. What a search returns doesn't rest on that, though: every search asks
+  Joplin which notes are visible now and returns only those, whatever the index
+  file holds.
 - **It follows Joplin as it changes.** The filter is checked against Joplin's
   notebooks on every call: a new sub-notebook of a visible notebook is visible at
   once, and a note moved into a hidden notebook is gone at the next call.
@@ -217,6 +218,12 @@ everything:
   has, a title no notebook has, a title two notebooks share, or a notebook one
   list shows and the other hides. If Joplin isn't answering at that moment there
   is nothing to check against, so the server starts and checks on every call.
+- **A variable that is set but lists nothing** (`SBJ_NOTEBOOKS=`) is refused
+  too. "Only these: none" and "no filter" are opposite readings of it, and the
+  second would show everything. Remove the variable to have no filter.
+- **With no filter set**, HTTP mode says so in its log at start-up ("no notebook
+  filter is set: every notebook is readable"), so a misspelt variable name
+  doesn't pass for a filter.
 - **While running** (you renamed or deleted a notebook the filter names), every
   tool refuses with a message saying the filter needs fixing. The client isn't
   told which entry, since that can be a hidden notebook's title. The server log
@@ -226,11 +233,21 @@ What it doesn't do:
 
 - It filters by notebook, not by content. A visible note that quotes or links a
   hidden one still shows what it says itself.
-- A note that is in no notebook is hidden once a filter is set.
+- A note that is in no notebook is hidden once a filter is set. With only
+  `SBJ_EXCLUDE_NOTEBOOKS` set, so is a notebook whose parents can't be traced
+  to the top (its parent is missing from Joplin's list): it might sit under a
+  hidden one.
+- A search whose matches are mostly in hidden notebooks reads through them
+  before it answers, so it takes longer than the same search without a filter.
 - The settings are read when the server starts, so restart it after changing
-  them. An index built before the change holds the newly hidden text until the
-  next sync; HTTP mode syncs at start-up, and `second-brain-joplin reindex` does
-  it at once.
+  them.
+- **The index file is shared** by everything that runs on the machine with the
+  same `SBJ_INDEX_DIR`. `second-brain-joplin reindex` run without the server's
+  settings has no filter and writes every note into it. Searches still return
+  only visible notes, and the server's next sync removes the rest, but to keep
+  hidden text out of the file run it as
+  `second-brain-joplin reindex --env-file <the server's env file>`. The command
+  says whether a filter was set.
 
 ## Creating notes
 
@@ -253,8 +270,9 @@ that can receive notes `writable`.
 ### Who confirms each note
 
 You do, in your client. The server can't put its own question to you on every
-client (claude.ai's connectors don't offer that part of MCP), so the check on
-each note is the client's approval prompt for the call. That is why the call
+client (claude.ai's connector documentation doesn't list that part of MCP as
+supported), so the check on each note is the client's approval prompt for the
+call. That is why the call
 carries the whole note in readable form: the notebook by name, the title, the
 text. What you approve is what gets written.
 
@@ -274,16 +292,23 @@ text. What you approve is what gets written.
   other notebook gets one answer, whether that notebook is hidden, doesn't exist
   or just isn't listed, followed by the notebooks that can receive notes.
 - **How much.** A title of up to 300 characters, a body of up to 100,000.
-- **A record.** Each created note is logged with its id, its notebook's id and
-  the caller. Never its title or text:
+- **A record.** Each attempt is logged with the note's id, its notebook's id and
+  the caller, before the request goes out and again with its outcome (`created`,
+  `create failed`, or `create unconfirmed`). Never the title or text:
 
   ```
-  2026-11-12 16:40:02,113 INFO second_brain_joplin.audit: note created id=4be0…a1 notebook=c7d1…6f caller=65598
+  2026-11-12 16:40:02,113 INFO second_brain_joplin.audit: note create sent id=4be0…a1 notebook=c7d1…6f caller=65598
+  2026-11-12 16:40:02,131 INFO second_brain_joplin.audit: note created id=4be0…a1 notebook=c7d1…6f caller=65598
   ```
-- **No second copy after a lost answer.** The tool chooses the note's id itself.
-  If Joplin creates the note but its answer never arrives, the tool looks for
-  that id and reports the note as created instead of failing. If it can't tell,
-  it says so and asks you to look in Joplin before trying again.
+- **An honest answer when Joplin fails.** The tool chooses the note's id itself,
+  so it can look afterwards. One of three things is reported: nothing was
+  created (Joplin was never reached, or answered no); the note was created (even
+  if Joplin's answer got lost on the way back); or it can't be known yet (the
+  request went out, no answer came, and the note isn't there so far).
+- **No second copy from a repeat.** Requests get repeated: a client that timed
+  out, Claude trying once more. For ten minutes the tool remembers which note it
+  sent, and the same request again (same notebook, title and text) returns that
+  note with `already_created: true` instead of making another.
 
 A wrong `SBJ_WRITE_NOTEBOOKS` (a title no notebook has, a notebook the filter
 hides) stops `serve` from starting, as a wrong filter does. If it stops matching
@@ -307,11 +332,12 @@ catch that, which is the reason to keep it on.
   2026-11-11 16:40:02,113 INFO second_brain_joplin.audit: tool=joplin_search caller=65598 outcome=ok ms=41
   ```
 
-  Never the arguments (a search query is note content), never results, never
-  tokens. Two loggers that would leak are silenced in HTTP mode: httpx's request
-  log (the Joplin token travels in the URL's query string, the only way Joplin's
-  API accepts it) and uvicorn's access log (the sign-in callback URL carries the
-  OAuth code).
+  Never the arguments (a search query is note content, and so is a new note's
+  text), never results, never tokens. Three loggers that would leak are held back
+  in HTTP mode: httpx's request log (the Joplin token travels in the URL's query
+  string, the only way Joplin's API accepts it), uvicorn's access log (the
+  sign-in callback URL carries the OAuth code), and FastMCP's debug log (it
+  prints each call's arguments, so it stays at INFO even if you ask for DEBUG).
 
 ## Indexing
 
@@ -320,8 +346,10 @@ seconds, and Cloudflare drops a response that sends nothing for 125. A first
 full index of a large vault (model download plus every note) can take longer, so
 indexing stays out of the request path:
 
-- **Build it first, on the server's machine:** `second-brain-joplin reindex`
-  (add `--full` to rebuild from scratch). It has no time limit.
+- **Build it first, on the server's machine:**
+  `second-brain-joplin reindex --env-file <the server's env file>` (add `--full`
+  to rebuild from scratch). It has no time limit. The env file matters if you
+  set a notebook filter: without it the command indexes every note.
 - **Background sync:** in HTTP mode the server syncs once at start-up and then
   every `SBJ_SYNC_INTERVAL_MINUTES` (default 15, 0 turns it off). Runs never
   overlap, a failed run is logged and the next one tries again, and if semantic
@@ -405,7 +433,8 @@ WantedBy=default.target
 ```
 
 Install the command with `uv tool install "second-brain-joplin[semantic]"`, and
-build the index once with `second-brain-joplin reindex` before the first start.
+build the index once with `second-brain-joplin reindex --env-file <that env file>`
+before the first start.
 
 ## Adding it to Claude
 

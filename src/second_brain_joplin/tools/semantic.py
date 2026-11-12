@@ -43,7 +43,8 @@ def register(mcp: FastMCP) -> None:
         if full and app.remote:
             raise ToolError(
                 "A full rebuild can take longer than a remote tool call may run. Run "
-                "`second-brain-joplin reindex --full` on the server's machine instead; "
+                "`second-brain-joplin reindex --full` on the server's machine instead, "
+                "with the server's --env-file so its notebook filter applies; "
                 "incremental syncs (full=false) work here."
             )
         try:

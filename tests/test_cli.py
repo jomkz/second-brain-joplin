@@ -1,6 +1,7 @@
 """Tests for the argparse CLI."""
 
 import logging
+import os
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -398,3 +399,72 @@ def test_reindex_with_a_wrong_filter_exits_2_and_says_why_once(
     assert exc.value.code == 2
     assert capsys.readouterr().err.count("no notebook is titled 'Wrok'") == 1
     assert index.note_versions() == {}
+
+
+# -- env files and variables that are set to nothing -------------------------------
+
+
+def test_a_variable_set_to_nothing_does_not_shadow_the_env_file(
+    tmp_path: Path, joplin: FakeJoplin, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An empty SBJ_EXCLUDE_NOTEBOOKS in the service's environment must not silently
+    beat the filter written in the file: that would show every notebook."""
+    env_file = tmp_path / "serve.env"
+    env_file.write_text("SBJ_EXCLUDE_NOTEBOOKS=Journal\nSBJ_PORT=9400\n")
+    monkeypatch.setenv("SBJ_EXCLUDE_NOTEBOOKS", "")
+    monkeypatch.setenv("SBJ_PORT", "9500")  # set to something: this one still wins
+    cli.load_env_file(env_file)
+    assert os.environ["SBJ_EXCLUDE_NOTEBOOKS"] == "Journal"
+    assert os.environ["SBJ_PORT"] == "9500"
+
+
+def test_dotenv_follows_the_same_rule(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    dotenv = tmp_path / ".env"
+    dotenv.write_text("SBJ_NOTEBOOKS=Work\nSBJ_PORT=9400\nSBJ_HOST\n")
+    monkeypatch.undo()  # the real load_dotenv, not the autouse stub
+    monkeypatch.setattr(cli, "find_dotenv", lambda: str(dotenv))
+    monkeypatch.setenv("SBJ_NOTEBOOKS", "")
+    monkeypatch.setenv("SBJ_PORT", "9500")
+    monkeypatch.delenv("SBJ_HOST", raising=False)
+    cli.load_dotenv()
+    assert os.environ["SBJ_NOTEBOOKS"] == "Work"
+    assert os.environ["SBJ_PORT"] == "9500"
+    assert "SBJ_HOST" not in os.environ  # a name with no value sets nothing
+
+    monkeypatch.setattr(cli, "find_dotenv", lambda: "")  # no .env anywhere: nothing to do
+    cli.load_dotenv()
+
+
+@pytest.mark.parametrize("name", ["SBJ_NOTEBOOKS", "SBJ_EXCLUDE_NOTEBOOKS"])
+def test_serve_refuses_a_filter_variable_that_lists_nothing(
+    name: str,
+    joplin: FakeJoplin,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    http_calls: list[HttpOptions],
+) -> None:
+    monkeypatch.setattr(FastMCP, "run", lambda *a, **k: pytest.fail("the server must not start"))
+    monkeypatch.setenv(name, " , ")
+    for argv in (["serve"], ["serve", "--transport", "http", "--no-auth"]):
+        with pytest.raises(SystemExit) as exc:
+            cli.main(argv)
+        assert exc.value.code == 2
+        assert f"{name}: set, but lists no notebook" in capsys.readouterr().err
+    assert http_calls == []
+    assert joplin.requests == []
+
+
+def test_notebooks_command_lists_notebooks_that_contain_each_other(
+    joplin: FakeJoplin, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Nothing a client could be shown may be missing from the operator's own listing."""
+    a = joplin.notebook("Loop A")
+    b = joplin.notebook("Loop B", parent=a)
+    joplin.folders[a]["parent_id"] = b
+    monkeypatch.setenv("SBJ_EXCLUDE_NOTEBOOKS", "Journal")
+    cli.main(["notebooks"])
+    out = capsys.readouterr().out
+    assert out.splitlines()[0] == "Notebook filter: 2 of 5 notebooks visible."
+    # Untraceable, so hidden under an exclude list; listed once each all the same.
+    assert out.count(f"hidden    {a}") == 1 and out.count(f"hidden    {b}") == 1
+    assert len(out.splitlines()) == 2 + 5

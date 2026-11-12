@@ -17,6 +17,7 @@ from second_brain_joplin.scope import (
     current_write_targets,
     resolve_scope,
     resolve_write_targets,
+    scope_of,
 )
 
 BASE_URL = "http://localhost:41184"
@@ -131,6 +132,23 @@ def test_a_cycle_in_the_notebook_list_does_not_loop() -> None:
         {"id": b, "title": "B", "parent_id": a},
     ]
     assert resolve_scope([a], [], folders).visible == frozenset({a, b})
+
+
+def test_with_only_an_exclude_list_a_notebook_that_cannot_be_traced_stays_hidden() -> None:
+    top, private, leaf, loop_a, loop_b = (_id(n) for n in range(1, 6))
+    folders = [
+        {"id": top, "title": "Top", "parent_id": ""},
+        {"id": private, "title": "Private", "parent_id": ""},
+        # Leaf sits under a notebook the list doesn't contain. That notebook could
+        # be inside Private, so Leaf can't be shown.
+        {"id": leaf, "title": "Leaf", "parent_id": _id(99)},
+        # Two notebooks that contain each other: nothing says what they are under.
+        {"id": loop_a, "title": "Loop A", "parent_id": loop_b},
+        {"id": loop_b, "title": "Loop B", "parent_id": loop_a},
+    ]
+    assert resolve_scope([], ["Private"], folders).visible == frozenset({top})
+    # Naming such a notebook outright in SBJ_NOTEBOOKS still shows it.
+    assert resolve_scope([leaf], [], folders).visible == frozenset({leaf})
 
 
 # -- filters that are refused ---------------------------------------------------
@@ -377,3 +395,51 @@ async def test_startup_check_covers_the_write_list_even_without_a_filter(
     with pytest.raises(NotebookFilterError) as raised:
         await check_at_startup(_settings(write_notebooks=("Wrok",)))
     assert raised.value.detail == "SBJ_WRITE_NOTEBOOKS: no notebook is titled 'Wrok'"
+
+
+# -- a filter variable that is set but lists nothing ------------------------------
+
+
+def test_a_blank_filter_variable_is_refused_not_read_as_no_filter() -> None:
+    settings = Settings(blank_filter_vars=("SBJ_NOTEBOOKS",))
+    with pytest.raises(NotebookFilterError) as raised:
+        scope_of(settings, FOLDERS)
+    assert raised.value.detail == (
+        "SBJ_NOTEBOOKS: set, but lists no notebook; list at least one, or remove the variable"
+    )
+
+
+@respx.mock
+async def test_a_blank_filter_variable_stops_every_call_and_the_start() -> None:
+    joplin = FakeJoplin()
+    joplin.notebook("Work")
+    joplin.down = True  # it is wrong whatever Joplin says, so Joplin isn't even asked
+    joplin.install()
+    settings = Settings(
+        joplin_base_url=BASE_URL, blank_filter_vars=("SBJ_NOTEBOOKS", "SBJ_EXCLUDE_NOTEBOOKS")
+    )
+    with pytest.raises(NotebookFilterError, match="notebook settings") as raised:
+        await check_at_startup(settings)
+    assert raised.value.detail.startswith("SBJ_NOTEBOOKS and SBJ_EXCLUDE_NOTEBOOKS: set, but")
+    assert joplin.requests == []
+
+    joplin.down = False
+    with pytest.raises(NotebookFilterError):
+        await current_scope(JoplinClient(settings), settings)
+
+
+@respx.mock
+async def test_startup_says_so_when_no_filter_is_set(caplog: pytest.LogCaptureFixture) -> None:
+    """A misspelt variable name must not pass for a filter in the log."""
+    caplog.set_level(logging.INFO, logger="second_brain_joplin")
+    joplin = FakeJoplin()
+    joplin.notebook("Inbox")
+    joplin.install()
+    await check_at_startup(_settings())
+    assert "no notebook filter is set: every notebook is readable" in caplog.text
+    assert joplin.requests == []
+
+    caplog.clear()
+    await check_at_startup(_settings(write_notebooks=("Inbox",)))  # writing is no filter
+    assert "no notebook filter is set" in caplog.text
+    assert "note creation: allowed in 1 notebooks" in caplog.text

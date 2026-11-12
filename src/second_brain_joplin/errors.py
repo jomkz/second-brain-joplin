@@ -11,7 +11,17 @@ class JoplinError(Exception):
 
 
 class JoplinConnectionError(JoplinError):
-    """Joplin's Web Clipper service could not be reached."""
+    """Joplin's Web Clipper service could not be reached, or didn't answer.
+
+    ``maybe_sent`` is False when the request provably never left (the connection
+    was refused or never opened), and True when it may have reached Joplin and
+    only the answer is missing. For a read the difference doesn't matter. For a
+    write it is the difference between "nothing happened" and "can't tell".
+    """
+
+    def __init__(self, message: str, *, maybe_sent: bool = True) -> None:
+        super().__init__(message)
+        self.maybe_sent = maybe_sent
 
 
 class JoplinAuthError(JoplinError):
