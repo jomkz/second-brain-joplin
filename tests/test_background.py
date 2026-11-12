@@ -15,7 +15,11 @@ from fastmcp.exceptions import ToolError
 from second_brain_joplin import cli, server
 from second_brain_joplin.background import sync_forever
 from second_brain_joplin.context import AppContext
-from second_brain_joplin.errors import JoplinAPIError, SemanticUnavailableError
+from second_brain_joplin.errors import (
+    JoplinAPIError,
+    NotebookFilterError,
+    SemanticUnavailableError,
+)
 from second_brain_joplin.remote import HttpOptions, ServeConfigError, http_options, validate
 from second_brain_joplin.semantic import backends
 from second_brain_joplin.semantic.types import SyncStats
@@ -88,6 +92,17 @@ async def test_a_failed_run_does_not_stop_the_loop(caplog: pytest.LogCaptureFixt
     assert "Joplin said 500" in caplog.text
     assert "RuntimeError" in caplog.text
     assert "note text" not in caplog.text  # unknown errors are logged by type only
+
+
+async def test_a_wrong_notebook_filter_skips_the_run_and_says_why(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO, logger="second_brain_joplin")
+    error = NotebookFilterError("SBJ_NOTEBOOKS: no notebook is titled 'Wrok'")
+    service = FakeService(errors=[error])
+    await _run_for(FakeApp(service), 0.08)
+    assert service.calls >= 3  # the loop goes on: the filter may be fixed in Joplin
+    assert "skipped, the notebook filter is wrong: SBJ_NOTEBOOKS: no notebook" in caplog.text
 
 
 async def test_missing_semantic_extra_stops_the_loop(caplog: pytest.LogCaptureFixture) -> None:

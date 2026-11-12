@@ -6,6 +6,37 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Notebook filter** (#59): `SBJ_NOTEBOOKS` (only these) and
+  `SBJ_EXCLUDE_NOTEBOOKS` (not these) limit which notebooks every tool can see,
+  on stdio and HTTP alike. Entries are notebook ids or titles and cover their
+  sub-notebooks; hiding wins when both are set. `joplin_overview` lists visible
+  notebooks only, `joplin_search` and `joplin_recent` leave hidden notes out and
+  keep reading until `limit` is filled, `joplin_read` answers for a hidden note
+  exactly as for one that doesn't exist, and semantic search never writes a
+  hidden note to its index. The filter is checked against Joplin on every call,
+  so a moved note or a new sub-notebook takes effect at once. A filter that
+  doesn't match Joplin's notebooks never shows everything instead: `serve`
+  refuses to start, and every tool refuses if it stops matching later
+  ([guide](docs/remote-access.md#choosing-which-notebooks-are-exposed)).
+- **`second-brain-joplin notebooks`** (#59): lists every notebook with its id
+  and note count, marked visible or hidden under the current filter, to find the
+  ids and check a filter before a client sees through it.
+
+### Changed
+
+- **`joplin_read` takes Joplin ids only** (#59): `note_id` must be 32
+  hexadecimal characters, the shape of every Joplin id; anything else is refused
+  before Joplin is called.
+
+### Fixed
+
+- A semantic sync asks Joplin for its notes before it touches the index (#59),
+  so a full rebuild started while Joplin is down no longer empties the index.
+- `joplin_recent` stops reading Joplin's list at the first note older than
+  `days` (#59) instead of always fetching `limit` notes first.
+
 ## [0.4.0] — Remote Access
 
 Use your notes from Claude anywhere: `serve --transport http` makes the server a

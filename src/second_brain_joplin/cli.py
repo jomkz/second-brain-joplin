@@ -12,9 +12,10 @@ from .audit import configure_logging
 from .auth import AuthSettings, build_auth
 from .config import Settings
 from .context import AppContext
-from .errors import JoplinError, SemanticUnavailableError
-from .joplin_client import JoplinClient
+from .errors import JoplinError, NotebookFilterError, SemanticUnavailableError
+from .joplin_client import JoplinClient, JsonDict
 from .remote import ServeConfigError, http_options, run_http, validate
+from .scope import NotebookScope, check_at_startup, scope_of
 from .semantic.types import SyncStats
 from .server import create_server, mcp
 
@@ -72,6 +73,19 @@ def build_parser() -> argparse.ArgumentParser:
     reindex.add_argument(
         "--env-file", type=Path, help="load settings from this file first (set variables win)"
     )
+    notebooks = subparsers.add_parser(
+        "notebooks",
+        help="List the notebooks with their ids and what the notebook filter shows.",
+        description=(
+            "Print every notebook with its id and note count, marked visible or hidden "
+            "under SBJ_NOTEBOOKS / SBJ_EXCLUDE_NOTEBOOKS. Use it to find the ids for "
+            "those variables, and to check a filter before a client sees through it. "
+            "Needs Joplin Desktop running."
+        ),
+    )
+    notebooks.add_argument(
+        "--env-file", type=Path, help="load settings from this file first (set variables win)"
+    )
     return parser
 
 
@@ -91,6 +105,66 @@ def reindex(args: argparse.Namespace) -> None:
         f"added={stats.added} updated={stats.updated} deleted={stats.deleted} "
         f"total={stats.total} model={stats.model_name}"
     )
+
+
+def notebook_lines(
+    folders: list[JsonDict], notes_index: list[JsonDict], scope: NotebookScope | None
+) -> list[str]:
+    """One line per notebook, as an indented tree: mark, id, title and note count.
+
+    Every notebook is listed, hidden ones too: this is the operator's own view.
+    ``scope`` is None when the filter doesn't resolve, and the mark is then ``?``.
+    """
+    counts: dict[str, int] = {}
+    for note in notes_index:
+        parent = note.get("parent_id", "")
+        counts[parent] = counts.get(parent, 0) + 1
+    ids = {folder["id"] for folder in folders}
+    children_of: dict[str, list[JsonDict]] = {}
+    for folder in sorted(folders, key=lambda f: str(f.get("title", "")).casefold()):
+        parent = folder.get("parent_id", "")
+        children_of.setdefault(parent if parent in ids else "", []).append(folder)
+
+    lines: list[str] = []
+
+    def walk(parent: str, depth: int) -> None:
+        for folder in children_of.get(parent, []):
+            if scope is None:
+                mark = "?"
+            else:
+                mark = "visible" if scope.allows(folder["id"]) else "hidden"
+            title = folder.get("title", "")
+            count = counts.get(folder["id"], 0)
+            lines.append(f"{mark:<7}  {folder['id']}  {'  ' * depth}{title} ({count})")
+            walk(folder["id"], depth + 1)
+
+    walk("", 0)
+    return lines
+
+
+async def fetch_notebooks(settings: Settings) -> tuple[list[JsonDict], list[JsonDict]]:
+    """Joplin's notebooks and its note index (ids and notebooks only, no content)."""
+    client = JoplinClient(settings)
+    try:
+        return await client.get_folders(), await client.get_notes_index()
+    finally:
+        await client.aclose()
+
+
+def notebooks(_args: argparse.Namespace) -> None:
+    settings = Settings.from_env()
+    folders, notes_index = asyncio.run(fetch_notebooks(settings))
+    try:
+        scope = scope_of(settings, folders)
+    except NotebookFilterError:
+        # Show the tree anyway: its ids are what fixes the filter.
+        print("\n".join(notebook_lines(folders, notes_index, None)))
+        raise
+    if scope.visible is None:
+        print(f"No notebook filter is set: all {len(folders)} notebooks are visible.")
+    else:
+        print(f"Notebook filter: {len(scope.visible)} of {len(folders)} notebooks visible.")
+    print("\n".join(notebook_lines(folders, notes_index, scope)))
 
 
 def load_env_file(path: Path) -> None:
@@ -124,6 +198,7 @@ def serve(args: argparse.Namespace) -> None:
         ]
         if http_only:
             raise ServeConfigError(f"{', '.join(http_only)} only apply to --transport http")
+        asyncio.run(check_at_startup(Settings.from_env()))
         mcp.run()
         return
     options = http_options(
@@ -136,6 +211,7 @@ def serve(args: argparse.Namespace) -> None:
     auth_settings = AuthSettings.from_env()
     validate(options, auth_configured=auth_settings is not None)
     configure_logging()
+    asyncio.run(check_at_startup(Settings.from_env()))
     auth = None
     if auth_settings is not None:
         assert options.public_url is not None  # validate() guarantees it with sign-in
@@ -164,8 +240,14 @@ def main(argv: list[str] | None = None) -> None:
             serve(args)
         elif args.command == "reindex":
             reindex(args)
+        elif args.command == "notebooks":
+            notebooks(args)
     except ServeConfigError as exc:
         parser.exit(2, f"{parser.prog}: error: {exc}\n")
+    except NotebookFilterError as exc:
+        # A configuration error like the ones above. The detail names the entry at
+        # fault; this is the operator's terminal, so it may.
+        parser.exit(2, f"{parser.prog}: error: {exc.detail}\n")
     except (SemanticUnavailableError, JoplinError) as exc:
         parser.exit(1, f"{parser.prog}: error: {exc}\n")
 

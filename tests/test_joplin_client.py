@@ -146,3 +146,77 @@ async def test_other_transport_errors_raise_connection_error(client: JoplinClien
 async def test_ping_timeout_is_down(client: JoplinClient) -> None:
     respx.get(f"{BASE_URL}/ping").mock(side_effect=httpx.ConnectTimeout("slow"))
     assert await client.ping() is False
+
+
+def _numbered_pages(per_page: int, total: int) -> dict[str, httpx.Response]:
+    """``total`` items ``{"id": "0"}``, ``{"id": "1"}``, ... split into pages."""
+    pages = {}
+    for start in range(0, total, per_page):
+        items = [{"id": str(i), "updated_time": 1000 - i} for i in range(start, start + per_page)]
+        pages[str(start // per_page + 1)] = httpx.Response(
+            200, json={"items": items, "has_more": start + per_page < total}
+        )
+    return pages
+
+
+@respx.mock
+async def test_search_with_keep_pages_on_until_the_limit_is_filled(client: JoplinClient) -> None:
+    pages = _numbered_pages(per_page=3, total=12)
+    route = respx.get(f"{BASE_URL}/search").mock(side_effect=lambda req: _page(req, pages))
+    hits = await client.search("q", limit=4, keep=lambda item: int(item["id"]) % 2 == 1)
+    assert [h["id"] for h in hits] == ["1", "3", "5", "7"]  # Joplin's order is kept
+    assert route.call_count == 3  # stopped on the page that filled the limit
+
+
+@respx.mock
+async def test_search_with_keep_ends_when_joplin_runs_out(client: JoplinClient) -> None:
+    pages = _numbered_pages(per_page=3, total=6)
+    route = respx.get(f"{BASE_URL}/search").mock(side_effect=lambda req: _page(req, pages))
+    hits = await client.search("q", limit=10, keep=lambda item: item["id"] == "4")
+    assert [h["id"] for h in hits] == ["4"]
+    assert route.call_count == 2
+
+
+@respx.mock
+async def test_search_asks_for_the_notebook_of_each_hit(client: JoplinClient) -> None:
+    route = respx.get(f"{BASE_URL}/search").mock(
+        return_value=httpx.Response(200, json={"items": [], "has_more": False})
+    )
+    await client.search("q", limit=1)
+    assert "parent_id" in route.calls.last.request.url.params["fields"].split(",")
+
+
+@respx.mock
+async def test_get_recent_stops_at_the_first_item_older_than_since(client: JoplinClient) -> None:
+    pages = _numbered_pages(per_page=3, total=12)  # updated_time 1000, 999, 998, ...
+    route = respx.get(f"{BASE_URL}/notes").mock(side_effect=lambda req: _page(req, pages))
+    notes = await client.get_recent(50, since_ms=996)
+    assert [n["updated_time"] for n in notes] == [1000, 999, 998, 997, 996]
+    assert route.call_count == 2  # the second page held the first too-old note
+
+
+@respx.mock
+async def test_get_recent_counts_only_kept_items_toward_the_limit(client: JoplinClient) -> None:
+    pages = _numbered_pages(per_page=3, total=12)
+    respx.get(f"{BASE_URL}/notes").mock(side_effect=lambda req: _page(req, pages))
+    notes = await client.get_recent(2, keep=lambda item: int(item["id"]) >= 4)
+    assert [n["id"] for n in notes] == ["4", "5"]
+
+
+@respx.mock
+async def test_get_recent_treats_a_missing_updated_time_as_too_old(client: JoplinClient) -> None:
+    respx.get(f"{BASE_URL}/notes").mock(
+        return_value=httpx.Response(
+            200, json={"items": [{"id": "a", "updated_time": 5}, {"id": "b"}], "has_more": False}
+        )
+    )
+    assert [n["id"] for n in await client.get_recent(10, since_ms=1)] == ["a"]
+
+
+@respx.mock
+async def test_list_note_versions_asks_for_each_notes_notebook(client: JoplinClient) -> None:
+    route = respx.get(f"{BASE_URL}/notes").mock(
+        return_value=httpx.Response(200, json={"items": [], "has_more": False})
+    )
+    await client.list_note_versions()
+    assert route.calls.last.request.url.params["fields"] == "id,updated_time,parent_id"

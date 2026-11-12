@@ -25,6 +25,16 @@ See client documentation for MCP server configuration. Use:
 - **Env**: `JOPLIN_API_TOKEN=your-token-here`
 - **Env**: `JOPLIN_BASE_URL=http://localhost:41184` (default, change only if customized)
 
+## Limiting which notebooks are visible (optional)
+
+- `SBJ_NOTEBOOKS` — only these notebooks (ids or titles, comma-separated), with
+  their sub-notebooks
+- `SBJ_EXCLUDE_NOTEBOOKS` — hide these notebooks, with their sub-notebooks
+
+`second-brain-joplin notebooks` lists every notebook's id and shows what the
+filter hides. See
+[Choosing which notebooks are exposed](remote-access.md#choosing-which-notebooks-are-exposed).
+
 ## Semantic search (optional)
 
 Semantic search needs the `[semantic]` extra. Point the command at the extra:

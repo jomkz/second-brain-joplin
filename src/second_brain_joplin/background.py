@@ -11,7 +11,7 @@ import asyncio
 import logging
 
 from .context import AppContext
-from .errors import JoplinError, SemanticUnavailableError
+from .errors import JoplinError, NotebookFilterError, SemanticUnavailableError
 
 logger = logging.getLogger("second_brain_joplin.background")
 
@@ -34,6 +34,10 @@ async def sync_forever(app: AppContext, interval_seconds: float) -> None:
             return
         except JoplinError as exc:  # messages are about Joplin, never note content
             logger.warning("background index sync failed: %s", exc)
+        except NotebookFilterError as exc:  # names the entry at fault, never a note
+            logger.warning(
+                "background index sync skipped, the notebook filter is wrong: %s", exc.detail
+            )
         except Exception as exc:  # keep going; the type is enough to investigate
             logger.warning("background index sync failed: %s", type(exc).__name__)
         else:

@@ -14,6 +14,7 @@ from fastmcp import Context
 
 from .config import Settings
 from .joplin_client import JoplinClient
+from .scope import NotebookScope, current_scope
 from .semantic.service import SemanticSearchService
 
 
@@ -27,6 +28,14 @@ class AppContext:
     # (a full reindex) refuse there and point at the CLI instead.
     remote: bool = False
     _semantic: SemanticSearchService | None = field(default=None, init=False, repr=False)
+
+    async def scope(self) -> NotebookScope:
+        """The notebooks a tool may see, resolved against Joplin now (scope.py).
+
+        Raises :class:`NotebookFilterError` when the configured filter doesn't
+        resolve; a tool must then refuse rather than show anything.
+        """
+        return await current_scope(self.client, self.settings)
 
     def semantic(self) -> SemanticSearchService:
         """Return the semantic service, building it (and loading the model) once.

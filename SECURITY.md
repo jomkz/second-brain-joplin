@@ -49,6 +49,15 @@ public issue. We aim to acknowledge reports within a few days.
 - **Least privilege.** Anything an MCP client can read, the connected AI can
   read. Don't expose notebooks containing credentials, regulated data, or other
   people's private information. Apply least privilege to your notes.
+- **A notebook filter.** `SBJ_NOTEBOOKS` (only these) and
+  `SBJ_EXCLUDE_NOTEBOOKS` (not these) limit which notebooks any tool can see, on
+  every transport
+  ([how it works](docs/remote-access.md#choosing-which-notebooks-are-exposed)).
+  A hidden note is left out of listings and searches, reads exactly like a note
+  that doesn't exist, and is never written to the semantic index. A filter that
+  doesn't match Joplin's notebooks makes the server refuse to start, or every
+  tool refuse if it stops matching later, never show everything. It filters by
+  notebook: a visible note that quotes a hidden one still shows what it quotes.
 - **No silent writes.** The v0.2 tools are read-only; the semantic tools only
   read from Joplin and write to a local index (below). Note creation is planned
   as an explicit **human-gated** flow in v0.5 — no writes to Joplin happen
@@ -64,7 +73,9 @@ footprint in two ways worth understanding:
   the embedding vectors **plus plaintext chunk text and note titles/ids** derived
   from your notes — treat it as sensitive as the notes themselves. Stale entries
   are pruned only when you reindex, so a note deleted in Joplin can linger in the
-  index until the next sync (run `joplin_reindex` to reconcile).
+  index until the next sync (run `joplin_reindex` to reconcile). With a notebook
+  filter set, hidden notes are never indexed, and one that becomes hidden is
+  dropped at the next sync or the next semantic search, whichever comes first.
 - **A one-time model download.** The first `joplin_reindex` downloads the
   embedding model from the internet (e.g. the Hugging Face / FastEmbed CDN) and
   caches it locally. Your note *content* is embedded on your machine and is never

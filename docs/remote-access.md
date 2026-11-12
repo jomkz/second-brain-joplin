@@ -153,6 +153,79 @@ Every tool is read-only toward Joplin, the same over HTTP as over stdio:
 - **Long notes are read in pages.** Claude caps a tool result near 150,000
   characters, so `joplin_read` returns at most `max_chars` (default 50,000, up to
   100,000) from `offset`, with `total_chars` and `next_offset` for the rest.
+- **Only the notebooks you choose**, if you set a notebook filter (next section).
+  Without one, every notebook is readable.
+
+## Choosing which notebooks are exposed
+
+By default every notebook is readable. Over HTTP, whatever Claude reads travels
+to Anthropic, so decide which notebooks that should cover. Two variables set a
+filter. They apply to every tool, on stdio as well as HTTP:
+
+| Variable | Effect |
+|---|---|
+| `SBJ_NOTEBOOKS` | Only these notebooks are visible |
+| `SBJ_EXCLUDE_NOTEBOOKS` | These notebooks are hidden |
+
+Each is a comma-separated list of notebook ids or titles, and an entry covers the
+notebook and every notebook under it. Hiding wins: with both set, a notebook is
+visible when the first list covers it and the second doesn't. Prefer ids. An id
+survives a rename; a title has to match exactly and belong to one notebook only.
+
+To find the ids, and to check a filter before a client sees through it:
+
+```bash
+second-brain-joplin notebooks
+```
+
+```
+Notebook filter: 2 of 3 notebooks visible.
+hidden   5a1f0c2e9b7d4f63a8e1c0d2b4f6a7c9  Journal (212)
+visible  9c40d1e7a3b24f58b6c9e0f1a2d3b4c5  Work (57)
+visible  0b7e3f9a1c2d4e5f8a7b6c5d4e3f2a1b    Projects (31)
+```
+
+It lists every notebook with its id and note count (hidden ones too: this is
+your own terminal), marked under the settings it was run with. Add
+`--env-file` to read them from the server's env file.
+
+What a filter changes:
+
+- **`joplin_overview`** lists visible notebooks only. A visible notebook under a
+  hidden one moves to the top of the tree, so the hidden parent's name isn't shown.
+- **`joplin_search` and `joplin_recent`** leave hidden notes out, and keep reading
+  Joplin's results until `limit` is filled.
+- **`joplin_read`** answers for a hidden note exactly as it does for a note that
+  doesn't exist.
+- **Semantic search** never indexes a hidden note, so its text isn't in the
+  on-disk index either. A note that becomes hidden (it moved, its notebook moved,
+  or you changed the filter) is dropped at the next sync, and a search always
+  drops such notes before it answers.
+- **It follows Joplin as it changes.** The filter is checked against Joplin's
+  notebooks on every call: a new sub-notebook of a visible notebook is visible at
+  once, and a note moved into a hidden notebook is gone at the next call.
+
+A filter that doesn't match Joplin's notebooks never falls back to showing
+everything:
+
+- **At start-up**, `serve` refuses to start, naming the entry: an id no notebook
+  has, a title no notebook has, a title two notebooks share, or a notebook one
+  list shows and the other hides. If Joplin isn't answering at that moment there
+  is nothing to check against, so the server starts and checks on every call.
+- **While running** (you renamed or deleted a notebook the filter names), every
+  tool refuses with a message saying the filter needs fixing. The client isn't
+  told which entry, since that can be a hidden notebook's title. The server log
+  and `second-brain-joplin notebooks` say.
+
+What it doesn't do:
+
+- It filters by notebook, not by content. A visible note that quotes or links a
+  hidden one still shows what it says itself.
+- A note that is in no notebook is hidden once a filter is set.
+- The settings are read when the server starts, so restart it after changing
+  them. An index built before the change holds the newly hidden text until the
+  next sync; HTTP mode syncs at start-up, and `second-brain-joplin reindex` does
+  it at once.
 
 ## Limits and logs
 
@@ -291,6 +364,8 @@ Cowork. Free accounts can add one custom connector.
 | `SBJ_JWT_SIGNING_KEY` | none | 32+ characters |
 | `SBJ_ALLOWED_GITHUB_IDS` | none | Numeric GitHub ids allowed in |
 | `SBJ_OAUTH_REDIRECT_URIS` | claude.ai's callback | OAuth clients allowed to register |
+| `SBJ_NOTEBOOKS` | none | Only these notebooks (ids or titles, comma-separated) are visible |
+| `SBJ_EXCLUDE_NOTEBOOKS` | none | These notebooks are hidden |
 | `SBJ_RATE_LIMIT_PER_MINUTE` | `60` | Tool calls per caller; 0 = off |
 | `SBJ_SYNC_INTERVAL_MINUTES` | `15` | Background index sync; 0 = off |
 

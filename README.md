@@ -83,6 +83,11 @@ non-destructive), so clients can tell what each one does. Note creation
 (`joplin_create`) returns with the human-gated write workflow in v0.5; until then
 no write tool is registered.
 
+To limit which notebooks these tools can see, set `SBJ_NOTEBOOKS` (only these) or
+`SBJ_EXCLUDE_NOTEBOOKS` (not these) to notebook ids or titles;
+`second-brain-joplin notebooks` lists the ids and shows what a filter hides. See
+[Choosing which notebooks are exposed](docs/remote-access.md#choosing-which-notebooks-are-exposed).
+
 > The read tools query a running Joplin instance as of v0.2. Semantic search
 > (`joplin_semantic_search` / `joplin_reindex`) landed in v0.3 and needs the
 > optional `[semantic]` extra (see [Semantic search](#semantic-search)).
@@ -152,7 +157,7 @@ The [PARA method](https://fortelabs.com/blog/para/) works well with Joplin. See 
 
 ## Security & privacy
 
-By default (stdio) this server keeps your notes local: it talks only to Joplin's Web Clipper REST API on `localhost` and runs on your own machine. HTTP mode, for a Claude custom connector, deliberately sends what Claude reads to Anthropic, behind GitHub sign-in limited to your account ([remote access](docs/remote-access.md)). Anything an MCP client can read, the connected AI can read — so apply least privilege and don't expose notebooks with credentials or other sensitive data. Note creation is planned as an explicit human-gated flow (v0.5); until then the server does no silent writes.
+By default (stdio) this server keeps your notes local: it talks only to Joplin's Web Clipper REST API on `localhost` and runs on your own machine. HTTP mode, for a Claude custom connector, deliberately sends what Claude reads to Anthropic, behind GitHub sign-in limited to your account ([remote access](docs/remote-access.md)). Anything an MCP client can read, the connected AI can read — so apply least privilege and don't expose notebooks with credentials or other sensitive data; a notebook filter (`SBJ_NOTEBOOKS` / `SBJ_EXCLUDE_NOTEBOOKS`) keeps chosen notebooks out of every tool. Note creation is planned as an explicit human-gated flow (v0.5); until then the server does no silent writes.
 
 Two caveats apply once you enable semantic search: it writes a **local index** (under your XDG data dir by default) that stores note text excerpts and titles alongside the embeddings, and it downloads the embedding model **once over the network** on the first reindex. Your note *content* is embedded locally and never leaves your machine. See [SECURITY.md](SECURITY.md) for details and how to report a vulnerability.
 

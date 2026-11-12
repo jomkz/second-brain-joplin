@@ -14,6 +14,8 @@ from second_brain_joplin.config import (
 )
 
 SBJ_VARS = [
+    "SBJ_NOTEBOOKS",
+    "SBJ_EXCLUDE_NOTEBOOKS",
     "SBJ_EMBEDDING_BACKEND",
     "SBJ_EMBEDDING_MODEL",
     "SBJ_VECTOR_STORE",
@@ -31,6 +33,9 @@ def test_defaults() -> None:
     assert settings.embedding_model == ""
     assert settings.vector_store == DEFAULT_VECTOR_STORE
     assert settings.semantic_auto_sync is True
+    assert settings.notebooks == ()
+    assert settings.exclude_notebooks == ()
+    assert settings.notebook_filter_set is False
 
 
 def test_trailing_slash_is_stripped() -> None:
@@ -96,3 +101,28 @@ def test_default_index_dir_falls_back_to_home(monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.delenv("XDG_DATA_HOME", raising=False)
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: Path("/home/tester")))
     assert default_index_dir() == "/home/tester/.local/share/second-brain-joplin/index"
+
+
+def test_from_env_reads_the_notebook_filter(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SBJ_NOTEBOOKS", " Work , 0123456789abcdef0123456789abcdef ,")
+    monkeypatch.setenv("SBJ_EXCLUDE_NOTEBOOKS", "Journal")
+    settings = Settings.from_env()
+    assert settings.notebooks == ("Work", "0123456789abcdef0123456789abcdef")
+    assert settings.exclude_notebooks == ("Journal",)
+    assert settings.notebook_filter_set is True
+
+
+@pytest.mark.parametrize("raw", ["", "   ", ",", " , ,"])
+def test_an_empty_notebook_list_is_no_filter(monkeypatch: pytest.MonkeyPatch, raw: str) -> None:
+    monkeypatch.setenv("SBJ_NOTEBOOKS", raw)
+    monkeypatch.delenv("SBJ_EXCLUDE_NOTEBOOKS", raising=False)
+    settings = Settings.from_env()
+    assert settings.notebooks == ()
+    assert settings.notebook_filter_set is False
+
+
+def test_either_list_alone_sets_the_filter(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("SBJ_NOTEBOOKS", raising=False)
+    monkeypatch.setenv("SBJ_EXCLUDE_NOTEBOOKS", "Journal")
+    assert Settings.from_env().notebook_filter_set is True
+    assert Settings(notebooks=("Work",)).notebook_filter_set is True
