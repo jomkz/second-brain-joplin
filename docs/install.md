@@ -176,12 +176,16 @@ You don't need to install Python yourself: `uvx` finds one, or downloads one.
   (`onnxruntime`) has no build for Python 3.15 yet (November 2026).
 
 That second line is why the semantic commands above say `--python 3.13`. Without
-it, on a computer whose own Python is 3.15, the installer can't satisfy
-`[semantic]` with the current release and falls back to a release from before
-semantic search existed. It says so only in a one-line warning the first time,
-which a client never shows you. The sign is `--version` printing `0.2.0`, with
-no semantic tools and no HTTP mode. `--python 3.13` makes `uvx` fetch a Python
-that everything supports.
+it, on a computer whose own Python is 3.15, the install fails with an error
+naming `onnxruntime`. `--python 3.13` makes `uvx` fetch a Python that everything
+supports.
+
+If you set semantic search up before 12 November 2026, check what you are
+running: until then the same command did not fail on Python 3.15 but installed
+0.2.0, a release from before semantic search existed, and said so only in a
+one-line warning that a client never shows. The sign is `--version` printing
+`0.2.0`, with no semantic tools and no HTTP mode. Those old releases have since
+been withdrawn, so it can't happen to a new install.
 
 ## Updating
 

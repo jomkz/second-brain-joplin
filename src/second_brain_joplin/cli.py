@@ -3,10 +3,11 @@
 import argparse
 import asyncio
 import os
+import tomllib
 from collections.abc import Mapping
 from pathlib import Path
 
-from dotenv import dotenv_values, find_dotenv
+from dotenv import dotenv_values
 
 from . import __version__
 from .audit import configure_logging
@@ -21,6 +22,8 @@ from .semantic.types import SyncStats
 from .server import create_server
 
 TRANSPORTS = ("stdio", "http")
+# This project's name in pyproject.toml: what marks a directory as a checkout of it.
+PROJECT_NAME = "second-brain-joplin"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -221,10 +224,38 @@ def load_env_file(path: Path) -> None:
     _apply_env(dotenv_values(path))
 
 
-def load_dotenv() -> None:
-    """Load a ``.env`` found from this package's directory upward, by the same rule."""
-    path = find_dotenv()
-    if path:
+def checkout_env_file(package_dir: Path | None = None) -> Path | None:
+    """The ``.env`` of the source checkout this code runs from, or None.
+
+    ``.env`` is a development convenience, so it is looked for in exactly one
+    place: beside this project's own ``pyproject.toml``, two levels above the
+    package (``<checkout>/src/second_brain_joplin``). An installed copy sits in
+    ``site-packages`` with no such file there, so it reads no ``.env`` at all:
+    not one in a directory above where it is installed (``~/.env`` for a tool
+    installed under the home directory, a project's ``.env`` for a copy in that
+    project's virtual environment), and never the working directory's, which is
+    whatever project the MCP client has open. A ``.env`` can point the server at
+    another Joplin or switch note creation on, so only a file the operator chose
+    may do that: an installed server takes its settings from its environment or
+    ``--env-file``.
+    """
+    here = Path(__file__).resolve().parent if package_dir is None else package_dir
+    root = here.parent.parent
+    try:
+        with (root / "pyproject.toml").open("rb") as handle:
+            project = tomllib.load(handle).get("project")
+    except (OSError, ValueError):  # no such file, or not TOML: not a checkout
+        return None
+    if not isinstance(project, dict) or project.get("name") != PROJECT_NAME:
+        return None
+    env_file = root / ".env"
+    return env_file if env_file.is_file() else None
+
+
+def load_dotenv(package_dir: Path | None = None) -> None:
+    """Load a source checkout's ``.env`` by the same rule as an env file; else nothing."""
+    path = checkout_env_file(package_dir)
+    if path is not None:
         _apply_env(dotenv_values(path))
 
 
@@ -247,7 +278,10 @@ def serve(args: argparse.Namespace) -> None:
         if http_only:
             raise ServeConfigError(f"{', '.join(http_only)} only apply to --transport http")
         asyncio.run(check_at_startup(Settings.from_env()))
-        create_server().run()
+        # Named, not left to FastMCP's own FASTMCP_TRANSPORT setting: `serve` without
+        # `--transport http` must never listen on the network, where none of HTTP
+        # mode's checks (sign-in, loopback, the Host check) would have run.
+        create_server().run(transport="stdio")
         return
     options = http_options(
         host=args.host,

@@ -28,14 +28,15 @@ runs, and a client may stop waiting before that finishes. Run
 again. With semantic search, run the client's full command once the same way:
 that download is larger.
 
-**`--version` prints `0.2.0`, or the semantic tools and HTTP mode are missing.**
-You asked for `[semantic]` on Python 3.15, which the embedding runtime doesn't
-support yet, and the installer fell back to an old release. Add `--python 3.13`
-to the `uvx` command ([Which Python](install.md#which-python)).
-
 **The install fails naming `onnxruntime` and "no wheels with a matching Python
-ABI tag".** The same cause, reported honestly because you named a version. The
-same fix.
+ABI tag".** You asked for `[semantic]` on Python 3.15, which the embedding
+runtime doesn't support yet. Add `--python 3.13` to the `uvx` command
+([Which Python](install.md#which-python)).
+
+**`--version` prints `0.2.0`, or the semantic tools and HTTP mode are missing.**
+The same cause, on a computer set up before 12 November 2026: until then the
+install did not fail but fell back to that old release, and `uvx` keeps the copy
+it made. The same fix: adding `--python 3.13` makes a new copy.
 
 **An old version keeps starting after a new release.** `uvx` keeps the copy it
 first installed ([Updating](install.md#updating)).

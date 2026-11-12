@@ -9,6 +9,7 @@
     uv run scripts/smoke.py --from "second-brain-joplin==1.0.0"
     uv run scripts/smoke.py --from dist/second_brain_joplin-1.0.0-py3-none-any.whl
     uv run scripts/smoke.py --python 3.13                      # on a chosen Python
+    uv run scripts/smoke.py --refresh --from "second-brain-joplin==1.0.1"   # just released
     uv run scripts/smoke.py --live                             # also read a running Joplin
     uv run scripts/smoke.py --semantic --from "second-brain-joplin[semantic]"
 
@@ -98,7 +99,14 @@ class Server:
     """How to start the server under test: `uvx [--python X] --from SPEC second-brain-joplin`."""
 
     def __init__(self, spec: str, python: str | None) -> None:
-        self.prefix = ["uvx", *(["--python", python] if python else []), "--from", spec]
+        self.options = [*(["--python", python] if python else []), "--from", spec]
+        self.prefix = ["uvx", *self.options]
+
+    def install(self, refresh: bool) -> list[str]:
+        """The first run, which installs the package: `--version`, asking PyPI again
+        with ``refresh`` (uv otherwise answers from what it fetched minutes ago)."""
+        refreshed = ["--refresh"] if refresh else []
+        return ["uvx", *refreshed, *self.options, "second-brain-joplin", "--version"]
 
     def command(self, *args: str) -> list[str]:
         return [*self.prefix, "second-brain-joplin", *args]
@@ -261,7 +269,7 @@ async def check_live(server: Server, env: dict[str, str], semantic: bool) -> Non
 async def run(args: argparse.Namespace) -> None:
     server = Server(args.spec, args.python)
     version = subprocess.run(
-        server.command("--version"), capture_output=True, text=True, check=False, timeout=600
+        server.install(args.refresh), capture_output=True, text=True, check=False, timeout=600
     )
     shown = version.stdout.strip()
     if not check(version.returncode == 0, "uvx installs and runs the package", shown):
@@ -304,6 +312,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument("--python", help="the Python uvx runs it on, e.g. 3.13")
     parser.add_argument("--expect", metavar="VERSION", help="fail unless this version starts")
+    parser.add_argument(
+        "--refresh", action="store_true", help="ask PyPI again first (for a version just released)"
+    )
     parser.add_argument("--semantic", action="store_true", help="also load the semantic stack")
     parser.add_argument("--live", action="store_true", help="also read from a running Joplin")
     parser.add_argument("--env-file", type=Path, help="with --live: read the Joplin token here")

@@ -63,10 +63,13 @@ Start the published version the way a user does and talk MCP to it. This is
 the check the workflow ran against the wheel, now against PyPI:
 
 ```bash
-uv run scripts/smoke.py --from "second-brain-joplin==1.0.0" --expect 1.0.0
+uv run scripts/smoke.py --refresh --from "second-brain-joplin==1.0.0" --expect 1.0.0
 ```
 
-PyPI can take a minute to offer a new version. Add `--live` to read from a
+`--refresh` matters right after a release: uv remembers what PyPI offered for a
+few minutes, and without it answers "there is no version of
+second-brain-joplin==1.0.0". PyPI itself can also take a minute to offer a new
+version. Add `--live` to read from a
 running Joplin as well (it takes `JOPLIN_API_TOKEN` from the environment or an
 `--env-file`, only reads, and prints counts, never note content), and
 `--semantic --python 3.13 --from "second-brain-joplin[semantic]==1.0.0"` to load

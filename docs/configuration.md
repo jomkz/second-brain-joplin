@@ -23,7 +23,7 @@ For each setting the server takes the first of these that gives a value:
 3. **The file named by `--env-file`**: plain `KEY=value` lines. Use it for a
    server that a service manager starts, and keep it readable by you only
    (`chmod 600`), since it holds the Joplin token.
-4. **A `.env` file** in a directory above the installed server (see below).
+4. **A `.env` file,** in a development checkout only (see below).
 5. **The default.**
 
 Things to know:
@@ -43,19 +43,21 @@ Things to know:
   notebook whose title contains a comma has to be named by its id.
 - **True or false:** `1`, `true`, `yes` and `on` mean true, in any letter case.
   Anything else means false.
-- **`.env` is for development.** The server looks for a `.env` starting at its
-  own installed location and going up through every parent directory, never
-  from the directory you start it in. In a clone of this repository that finds
-  the clone's `.env`
-  ([CONTRIBUTING.md](../CONTRIBUTING.md#running-the-server-locally)). For an
-  installed server it normally finds nothing, but a `.env` in any parent of the
-  install location is read: `~/.env` when the server is installed under your
-  home directory (as `uvx` and `uv tool install` do), and a project's `.env` if
-  you installed it into that project's own virtual environment. So don't rely
-  on it: use the client's `env` block or `--env-file`. The directory an MCP
-  client starts the server in is deliberately not searched for these settings:
-  that is whatever project you have open, and it shouldn't be able to point the
-  server at a different Joplin or switch note creation on.
+- **`.env` is for development.** Running from a clone of this repository, the
+  server reads the `.env` at the top of that clone
+  ([CONTRIBUTING.md](../CONTRIBUTING.md#running-the-server-locally)). An
+  installed server reads no `.env` at all: not one in the directory it is
+  started in, which is whatever project your MCP client has open, and not one in
+  a directory above where it is installed, such as `~/.env`. A `.env` can point
+  the server at a different Joplin or switch note creation on, so the only
+  settings file an installed server reads is the one you name with `--env-file`.
+  (Until 1.0.1 an installed server also read a `.env` from any directory above
+  its install location.)
+- **FastMCP's own settings.** FastMCP, the library this server is built on, has
+  `FASTMCP_*` settings of its own, such as its log level. The server lets it
+  read those from the environment, never from a `.env` in the working directory,
+  and always chooses the transport itself: `FASTMCP_TRANSPORT` has no effect.
+  Use `--transport` or `SBJ_TRANSPORT`.
 
 ## Joplin
 

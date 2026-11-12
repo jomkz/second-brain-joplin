@@ -36,8 +36,7 @@ uvx --python 3.13 --from "second-brain-joplin[semantic]" second-brain-joplin ser
 
 The semantic stack runs on Python 3.11 to 3.14: its embedding runtime has no
 build for Python 3.15 yet. `--python 3.13` makes `uvx` fetch a Python that works
-whatever your computer's own is; without it, on Python 3.15, the installer
-quietly falls back to a release that has no semantic search
+whatever your computer's own is; without it, on Python 3.15, the install fails
 ([Which Python](install.md#which-python)).
 
 The default stack is **FastEmbed** (ONNX, no PyTorch) + **`sqlite-vec`** (a
