@@ -6,6 +6,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.0] — Write Workflow
+
+Decide what the AI can reach, and where it can write. A notebook filter
+(`SBJ_NOTEBOOKS`, `SBJ_EXCLUDE_NOTEBOOKS`) limits every tool to the notebooks you
+choose, on stdio and HTTP alike, and never falls back to showing everything.
+Note creation arrives as a single tool, `joplin_create_note`: off until
+`SBJ_WRITE_NOTEBOOKS` lists the notebooks that may receive notes, able to add a
+note and nothing else, with your client's approval prompt as the check on each
+one. A server that sets none of the three variables behaves as before, except
+that `joplin_read` now takes Joplin ids only
+([notebook filter](docs/remote-access.md#choosing-which-notebooks-are-exposed),
+[creating notes](docs/remote-access.md#creating-notes)).
+
 ### Added
 
 - **Notebook filter** (#59): `SBJ_NOTEBOOKS` (only these) and
@@ -242,7 +255,8 @@ Initial project skeleton — the MCP server starts and all tools are stubbed.
 - Documentation: install, notebook structure (PARA), project management,
   releasing runbook, security policy, and an inspiration/reference note.
 
-[Unreleased]: https://github.com/jomkz/second-brain-joplin/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/jomkz/second-brain-joplin/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.1.0...v0.2.0
