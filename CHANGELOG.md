@@ -21,14 +21,28 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   refuses to start, and every tool refuses if it stops matching later
   ([guide](docs/remote-access.md#choosing-which-notebooks-are-exposed)).
 - **`second-brain-joplin notebooks`** (#59): lists every notebook with its id
-  and note count, marked visible or hidden under the current filter, to find the
-  ids and check a filter before a client sees through it.
+  and note count, marked hidden, visible or writable under the current
+  settings, to find the ids and check a filter before a client sees through it.
+- **Note creation, where you allow it** (#10): `joplin_create_note(title, body,
+  notebook)` adds one new markdown note to a notebook named by its title or id.
+  It is the only write tool, and it can't change, move or delete anything. The
+  server stays read-only until `SBJ_WRITE_NOTEBOOKS` lists where notes may go
+  (ids or titles with their sub-notebooks, or `*` for every visible notebook);
+  without it the tool isn't registered. A note can never go into a notebook the
+  filter hides, and every notebook that can't receive one is refused with the
+  same answer. The check on each note is the client's approval prompt, so the
+  call carries the note in readable form; Claude Code is told to prompt on every
+  call. Each created note is logged by id, never by title or text, and a note
+  whose confirmation from Joplin is lost is reported as created instead of being
+  made twice ([guide](docs/remote-access.md#creating-notes)).
 
 ### Changed
 
 - **`joplin_read` takes Joplin ids only** (#59): `note_id` must be 32
   hexadecimal characters, the shape of every Joplin id; anything else is refused
   before Joplin is called.
+- **`serve` builds the server after reading `--env-file` and `.env`** (#10), so
+  those files decide whether the write tool exists.
 
 ### Fixed
 

@@ -140,13 +140,14 @@ To cut access at once, do any one of:
 
 ## What a remote client can do
 
-Every tool is read-only toward Joplin, the same over HTTP as over stdio:
+Unless you turn note creation on ([Creating notes](#creating-notes)), every tool
+is read-only toward Joplin, the same over HTTP as over stdio:
 
-- **No write tool is registered.** Note creation returns with the human-gated
-  write workflow (v0.5). In Claude's connector settings you can still set any
-  tool to "always ask".
+- **No write tool is registered** until you list where notes may go. A client
+  can't call, or even see, a tool that isn't there.
 - **Annotations** mark every tool read-only, except `joplin_reindex`, which
-  updates the local search index only (never Joplin, never destructive).
+  updates the local search index only (never Joplin, never destructive), and
+  `joplin_create_note`, which is marked as a write that adds and never destroys.
 - **Bounded arguments:** `limit` 1–50 for the searches, 1–100 for
   `joplin_recent`, `days` 1–3650. Anything outside is refused before Joplin is
   called.
@@ -179,15 +180,19 @@ second-brain-joplin notebooks
 ```
 
 ```
-Notebook filter: 2 of 3 notebooks visible.
-hidden   5a1f0c2e9b7d4f63a8e1c0d2b4f6a7c9  Journal (212)
-visible  9c40d1e7a3b24f58b6c9e0f1a2d3b4c5  Work (57)
-visible  0b7e3f9a1c2d4e5f8a7b6c5d4e3f2a1b    Projects (31)
+Notebook filter: 3 of 4 notebooks visible.
+Note creation: allowed in the 1 marked writable.
+writable  c7d1e5a09b3f4c2d8e6f1a0b9c8d7e6f  Inbox (4)
+hidden    5a1f0c2e9b7d4f63a8e1c0d2b4f6a7c9  Journal (212)
+visible   9c40d1e7a3b24f58b6c9e0f1a2d3b4c5  Work (57)
+visible   0b7e3f9a1c2d4e5f8a7b6c5d4e3f2a1b    Projects (31)
 ```
 
 It lists every notebook with its id and note count (hidden ones too: this is
-your own terminal), marked under the settings it was run with. Add
-`--env-file` to read them from the server's env file.
+your own terminal), marked under the settings it was run with: `hidden`,
+`visible`, or `writable` where a note may also be created
+([Creating notes](#creating-notes)). Add `--env-file` to read the settings from
+the server's env file.
 
 What a filter changes:
 
@@ -226,6 +231,67 @@ What it doesn't do:
   them. An index built before the change holds the newly hidden text until the
   next sync; HTTP mode syncs at start-up, and `second-brain-joplin reindex` does
   it at once.
+
+## Creating notes
+
+The server is read-only until you say where notes may go:
+
+| Variable | Effect |
+|---|---|
+| `SBJ_WRITE_NOTEBOOKS` | Notes may be created in these notebooks: ids or titles, comma-separated, each with its sub-notebooks. `*` means every visible notebook |
+
+With it set, one more tool appears: `joplin_create_note(title, body, notebook)`.
+It adds one new markdown note to a notebook on the list, named by its exact
+title or its id. That is all it can do. It can't change, move or delete a note,
+and it can't write to a notebook the filter hides. Without the variable the tool
+isn't registered at all.
+
+A notebook made for the purpose is a good first setting, for example
+`SBJ_WRITE_NOTEBOOKS=Inbox`. `second-brain-joplin notebooks` marks the notebooks
+that can receive notes `writable`.
+
+### Who confirms each note
+
+You do, in your client. The server can't put its own question to you on every
+client (claude.ai's connectors don't offer that part of MCP), so the check on
+each note is the client's approval prompt for the call. That is why the call
+carries the whole note in readable form: the notebook by name, the title, the
+text. What you approve is what gets written.
+
+- **claude.ai and the Claude apps:** keep `joplin_create_note` on "Needs
+  approval" in the connector's tool settings. Choosing "Allow always" turns the
+  per-note check off: Claude can then add notes to the listed notebooks without
+  asking you.
+- **Claude Code:** the tool carries a flag that makes Claude Code ask on every
+  call, with no "don't ask again", whatever allow rules or permission mode are in
+  force.
+- **Other clients:** find out how yours treats a tool that isn't read-only
+  before you turn this on.
+
+### What the server enforces
+
+- **Where.** Only the listed notebooks, and never a hidden one. A request for any
+  other notebook gets one answer, whether that notebook is hidden, doesn't exist
+  or just isn't listed, followed by the notebooks that can receive notes.
+- **How much.** A title of up to 300 characters, a body of up to 100,000.
+- **A record.** Each created note is logged with its id, its notebook's id and
+  the caller. Never its title or text:
+
+  ```
+  2026-11-12 16:40:02,113 INFO second_brain_joplin.audit: note created id=4be0…a1 notebook=c7d1…6f caller=65598
+  ```
+- **No second copy after a lost answer.** The tool chooses the note's id itself.
+  If Joplin creates the note but its answer never arrives, the tool looks for
+  that id and reports the note as created instead of failing. If it can't tell,
+  it says so and asks you to look in Joplin before trying again.
+
+A wrong `SBJ_WRITE_NOTEBOOKS` (a title no notebook has, a notebook the filter
+hides) stops `serve` from starting, as a wrong filter does. If it stops matching
+later, `joplin_create_note` refuses and the read tools carry on.
+
+Notes hold text from anywhere: a clipped web page, a pasted email. Text written
+to steer an AI could ask it to write more notes. The approval prompt is where you
+catch that, which is the reason to keep it on.
 
 ## Limits and logs
 
@@ -366,6 +432,7 @@ Cowork. Free accounts can add one custom connector.
 | `SBJ_OAUTH_REDIRECT_URIS` | claude.ai's callback | OAuth clients allowed to register |
 | `SBJ_NOTEBOOKS` | none | Only these notebooks (ids or titles, comma-separated) are visible |
 | `SBJ_EXCLUDE_NOTEBOOKS` | none | These notebooks are hidden |
+| `SBJ_WRITE_NOTEBOOKS` | none (read-only) | Notes may be created in these notebooks; `*` = every visible one |
 | `SBJ_RATE_LIMIT_PER_MINUTE` | `60` | Tool calls per caller; 0 = off |
 | `SBJ_SYNC_INTERVAL_MINUTES` | `15` | Background index sync; 0 = off |
 

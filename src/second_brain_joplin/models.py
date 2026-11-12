@@ -17,6 +17,9 @@ MAX_RECENT_LIMIT = 100
 MAX_RECENT_DAYS = 3650
 READ_DEFAULT_CHARS = 50_000
 READ_MAX_CHARS = 100_000
+# Bounds on a note the write tool may create: one page of joplin_read holds it.
+MAX_TITLE_CHARS = 300
+MAX_NOTE_CHARS = 100_000
 
 
 def epoch_ms_to_iso(value: int) -> str:
@@ -94,3 +97,13 @@ class ReindexResult(BaseModel):
     deleted: int
     total: int
     model: str
+
+
+class CreatedNote(BaseModel):
+    """A note the write tool just created: where it is and what it is called."""
+
+    id: str
+    title: str
+    notebook_id: str
+    notebook: str
+    created_time: str | None = None

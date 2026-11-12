@@ -16,6 +16,7 @@ from second_brain_joplin.config import (
 SBJ_VARS = [
     "SBJ_NOTEBOOKS",
     "SBJ_EXCLUDE_NOTEBOOKS",
+    "SBJ_WRITE_NOTEBOOKS",
     "SBJ_EMBEDDING_BACKEND",
     "SBJ_EMBEDDING_MODEL",
     "SBJ_VECTOR_STORE",
@@ -36,6 +37,8 @@ def test_defaults() -> None:
     assert settings.notebooks == ()
     assert settings.exclude_notebooks == ()
     assert settings.notebook_filter_set is False
+    assert settings.write_notebooks == ()
+    assert settings.writes_enabled is False
 
 
 def test_trailing_slash_is_stripped() -> None:
@@ -126,3 +129,19 @@ def test_either_list_alone_sets_the_filter(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setenv("SBJ_EXCLUDE_NOTEBOOKS", "Journal")
     assert Settings.from_env().notebook_filter_set is True
     assert Settings(notebooks=("Work",)).notebook_filter_set is True
+
+
+def test_from_env_reads_where_notes_may_be_created(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SBJ_WRITE_NOTEBOOKS", " Inbox , * ")
+    settings = Settings.from_env()
+    assert settings.write_notebooks == ("Inbox", "*")
+    assert settings.writes_enabled is True
+    assert settings.notebook_filter_set is False  # writing is not a read filter
+
+
+@pytest.mark.parametrize("raw", ["", "  ", ","])
+def test_an_empty_write_list_leaves_the_server_read_only(
+    monkeypatch: pytest.MonkeyPatch, raw: str
+) -> None:
+    monkeypatch.setenv("SBJ_WRITE_NOTEBOOKS", raw)
+    assert Settings.from_env().writes_enabled is False

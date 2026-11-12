@@ -14,7 +14,7 @@ from fastmcp import Context
 
 from .config import Settings
 from .joplin_client import JoplinClient
-from .scope import NotebookScope, current_scope
+from .scope import NotebookScope, WriteTargets, current_scope, current_write_targets
 from .semantic.service import SemanticSearchService
 
 
@@ -36,6 +36,14 @@ class AppContext:
         resolve; a tool must then refuse rather than show anything.
         """
         return await current_scope(self.client, self.settings)
+
+    async def write_targets(self) -> WriteTargets:
+        """The notebooks a note may be created in, resolved against Joplin now.
+
+        Empty when the server is read-only. Raises :class:`NotebookFilterError`
+        when the notebook settings don't resolve; the write tool must then refuse.
+        """
+        return await current_write_targets(self.client, self.settings)
 
     def semantic(self) -> SemanticSearchService:
         """Return the semantic service, building it (and loading the model) once.

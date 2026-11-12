@@ -6,6 +6,7 @@ a small Joplin (notebooks, notes, search, paging) served through respx.
 """
 
 import hashlib
+import json
 import math
 import re
 from collections.abc import Callable
@@ -100,9 +101,10 @@ class FakeJoplin:
 
     Mirrors what the real API was seen to do (Joplin 3.7): ``/folders`` is a flat
     paginated list carrying ``parent_id``, listings honour ``fields``, ``page`` and
-    ``order_by=updated_time``, and a missing note answers 404. Ids are 32
-    hexadecimal characters, handed out in order. Call :meth:`install` inside a
-    ``respx.mock`` block.
+    ``order_by=updated_time``, and a missing note answers 404. ``POST /notes``
+    creates a note under the id the request supplies, as Joplin's API reference
+    describes, and answers with the note. Ids are 32 hexadecimal characters,
+    handed out in order. Call :meth:`install` inside a ``respx.mock`` block.
     """
 
     def __init__(self, base_url: str = "http://localhost:41184", page_size: int = 100) -> None:
@@ -116,6 +118,12 @@ class FakeJoplin:
         # a test can change the vault between a listing and the read that follows.
         self.before_note: Callable[[str], None] | None = None
         self.note_status: int | None = None  # answer single-note reads with this
+        self.posts: list[dict[str, Any]] = []  # the JSON body of every POST /notes
+        self.post_status: int | None = None  # refuse POST /notes with this, creating nothing
+        # Create the note, then lose the answer: the client sees a timeout.
+        self.post_loses_response = False
+        self.post_ignores_id = False  # hand out an id of Joplin's own instead
+        self.down_after_post = False  # go down right after the next POST
         self._next_id = 1
 
     def _new_id(self) -> str:
@@ -155,6 +163,7 @@ class FakeJoplin:
         respx.get(f"{self.base_url}/folders").mock(side_effect=self._folders)
         respx.get(f"{self.base_url}/notes").mock(side_effect=self._notes)
         respx.get(f"{self.base_url}/search").mock(side_effect=self._search)
+        respx.post(f"{self.base_url}/notes").mock(side_effect=self._create)
         respx.get(url__regex=rf"{base}/notes/[^/?]+").mock(side_effect=self._note)
 
     def _page(self, request: httpx.Request, rows: list[dict[str, Any]]) -> httpx.Response:
@@ -204,4 +213,28 @@ class FakeJoplin:
         note = self.notes.get(note_id)
         if note is None:
             return httpx.Response(404)
+        return httpx.Response(200, json=note)
+
+    def _create(self, request: httpx.Request) -> httpx.Response:
+        self.requests.append(f"POST {request.url.path}")
+        if self.down:
+            raise httpx.ConnectError("Joplin is down")
+        payload = json.loads(request.content)
+        self.posts.append(payload)
+        if self.post_status is not None:
+            return httpx.Response(self.post_status)
+        note_id = self._new_id() if self.post_ignores_id else payload["id"]
+        note = {
+            "id": note_id,
+            "title": payload.get("title", ""),
+            "body": payload.get("body", ""),
+            "parent_id": payload.get("parent_id", ""),
+            "created_time": 1_700_000_000_000,
+            "updated_time": 1_700_000_000_000,
+        }
+        self.notes[note_id] = note
+        if self.down_after_post:
+            self.down = True
+        if self.post_loses_response:
+            raise httpx.ReadTimeout("the answer never arrived")
         return httpx.Response(200, json=note)

@@ -14,7 +14,9 @@ from second_brain_joplin.scope import (
     NotebookScope,
     check_at_startup,
     current_scope,
+    current_write_targets,
     resolve_scope,
+    resolve_write_targets,
 )
 
 BASE_URL = "http://localhost:41184"
@@ -176,12 +178,17 @@ def test_the_error_a_client_sees_never_carries_the_detail() -> None:
 # -- resolving against Joplin ---------------------------------------------------
 
 
-def _settings(notebooks: tuple[str, ...] = (), exclude_notebooks: tuple[str, ...] = ()) -> Settings:
+def _settings(
+    notebooks: tuple[str, ...] = (),
+    exclude_notebooks: tuple[str, ...] = (),
+    write_notebooks: tuple[str, ...] = (),
+) -> Settings:
     return Settings(
         joplin_base_url=BASE_URL,
         joplin_api_token="tok",
         notebooks=notebooks,
         exclude_notebooks=exclude_notebooks,
+        write_notebooks=write_notebooks,
     )
 
 
@@ -262,3 +269,111 @@ async def test_startup_check_without_a_filter_does_nothing() -> None:
     joplin.install()
     await check_at_startup(_settings())
     assert joplin.requests == []
+
+
+# -- where a note may be created (SBJ_WRITE_NOTEBOOKS) ----------------------------
+
+
+def _writable(write: list[str], include: list[str], exclude: list[str]) -> set[str]:
+    scope = resolve_scope(include, exclude, FOLDERS)
+    return set(resolve_write_targets(write, scope, FOLDERS).titles)
+
+
+def _write_detail(write: list[str], include: list[str], exclude: list[str]) -> str:
+    scope = resolve_scope(include, exclude, FOLDERS)
+    with pytest.raises(NotebookFilterError) as raised:
+        resolve_write_targets(write, scope, FOLDERS)
+    return raised.value.detail
+
+
+def test_no_write_list_means_nowhere() -> None:
+    targets = resolve_write_targets([], UNFILTERED, FOLDERS)
+    assert targets.titles == {}
+    assert targets.title_of(WORK) is None
+
+
+def test_a_write_entry_covers_the_notebook_and_everything_under_it() -> None:
+    assert _writable([WORK], [], []) == {WORK, PROJECTS, ALPHA, ARCHIVE_A}
+    assert _writable(["Projects"], [], []) == {PROJECTS, ALPHA}
+    assert _writable(["Alpha", PRIVATE], [], []) == {ALPHA, PRIVATE}
+
+
+def test_write_targets_carry_each_notebooks_title() -> None:
+    targets = resolve_write_targets(["Projects"], UNFILTERED, FOLDERS)
+    assert targets.titles == {PROJECTS: "Projects", ALPHA: "Alpha"}
+    assert targets.title_of(ALPHA) == "Alpha"
+
+
+def test_a_star_means_every_notebook_the_filter_shows() -> None:
+    assert _writable(["*"], [], []) == ALL
+    assert _writable(["*"], [], ["Journal"]) == {WORK, PROJECTS, ALPHA, ARCHIVE_A}
+    assert _writable(["*"], [PROJECTS], []) == {PROJECTS, ALPHA}
+    assert _writable(["*", "Work"], [], ["Journal"]) == {WORK, PROJECTS, ALPHA, ARCHIVE_A}
+
+
+def test_writing_never_reaches_past_the_filter() -> None:
+    # Work is listed for writing, but the filter hides Projects (and Alpha under it).
+    assert _writable([WORK], [], [PROJECTS]) == {WORK, ARCHIVE_A}
+    assert _writable([WORK], [WORK], [PROJECTS]) == {WORK, ARCHIVE_A}
+
+
+def test_a_write_entry_the_filter_hides_is_refused() -> None:
+    assert _write_detail(["Journal"], [], ["Journal"]) == (
+        "SBJ_WRITE_NOTEBOOKS: 'Journal' is hidden by the notebook filter, so no note "
+        "could be created there"
+    )
+    assert "is hidden by the notebook filter" in _write_detail([PRIVATE], [], ["Journal"])
+    assert "is hidden by the notebook filter" in _write_detail(["Journal"], [WORK], [])
+
+
+def test_a_write_entry_that_names_nothing_or_too_much_is_refused() -> None:
+    assert _write_detail(["Inbocks"], [], []) == (
+        "SBJ_WRITE_NOTEBOOKS: no notebook is titled 'Inbocks'"
+    )
+    assert _write_detail([_id(999)], [], []).startswith(
+        "SBJ_WRITE_NOTEBOOKS: no notebook has the id"
+    )
+    assert "2 notebooks are titled 'Archive'" in _write_detail(["Archive"], [], [])
+
+
+@respx.mock
+async def test_current_write_targets_does_not_ask_joplin_while_writes_are_off() -> None:
+    joplin = FakeJoplin()
+    joplin.install()
+    settings = _settings(exclude_notebooks=("Journal",))
+    assert (await current_write_targets(JoplinClient(settings), settings)).titles == {}
+    assert joplin.requests == []
+
+
+@respx.mock
+async def test_current_write_targets_follow_joplin_and_the_filter() -> None:
+    joplin = FakeJoplin()
+    work, journal = joplin.notebook("Work"), joplin.notebook("Journal")
+    joplin.install()
+    settings = _settings(exclude_notebooks=("Journal",), write_notebooks=("*",))
+    client = JoplinClient(settings)
+
+    assert (await current_write_targets(client, settings)).titles == {work: "Work"}
+    sub = joplin.notebook("Sub", parent=work)
+    joplin.notebook("Hidden sub", parent=journal)
+    assert (await current_write_targets(client, settings)).titles == {work: "Work", sub: "Sub"}
+
+
+@respx.mock
+async def test_startup_check_covers_the_write_list_even_without_a_filter(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO, logger="second_brain_joplin")
+    joplin = FakeJoplin()
+    work = joplin.notebook("Work")
+    joplin.notebook("Sub", parent=work)
+    joplin.notebook("Journal")
+    joplin.install()
+
+    await check_at_startup(_settings(write_notebooks=("Work",)))
+    assert "note creation: allowed in 2 notebooks" in caplog.text
+    assert "notebook filter:" not in caplog.text  # none is set, so none is reported
+
+    with pytest.raises(NotebookFilterError) as raised:
+        await check_at_startup(_settings(write_notebooks=("Wrok",)))
+    assert raised.value.detail == "SBJ_WRITE_NOTEBOOKS: no notebook is titled 'Wrok'"

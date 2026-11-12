@@ -37,20 +37,22 @@ class JoplinAPIError(JoplinError):
 
 
 NOTEBOOK_FILTER_MESSAGE = (
-    "The notebook filter (SBJ_NOTEBOOKS / SBJ_EXCLUDE_NOTEBOOKS) doesn't match "
-    "Joplin's notebooks, so no notes are available until it is fixed. On the "
-    "server's machine, `second-brain-joplin notebooks` shows what is wrong."
+    "The server's notebook settings (SBJ_NOTEBOOKS, SBJ_EXCLUDE_NOTEBOOKS, "
+    "SBJ_WRITE_NOTEBOOKS) don't match Joplin's notebooks, so this is refused until "
+    "they are fixed. On the server's machine, `second-brain-joplin notebooks` "
+    "shows what is wrong."
 )
 
 
 class NotebookFilterError(Exception):
-    """The notebook filter names something Joplin's notebooks don't match.
+    """A notebook setting names something Joplin's notebooks don't match.
 
-    Every tool refuses while this holds: a filter that can't be resolved must not
-    fall back to showing everything. ``str()`` is the same fixed sentence every
-    time and is safe to hand to a remote client. ``detail`` says which variable
-    and entry is wrong; an entry can be the title of a notebook the operator wants
-    hidden, so the detail is for the operator only (the log, the command line).
+    The tools it governs refuse while this holds: a filter that can't be resolved
+    must not fall back to showing everything, nor a write list to allowing every
+    notebook. ``str()`` is the same fixed sentence every time and is safe to hand
+    to a remote client. ``detail`` says which variable and entry is wrong; an
+    entry can be the title of a notebook the operator wants hidden, so the detail
+    is for the operator only (the log, the command line).
 
     Deliberately not a :class:`JoplinError`: it is a configuration problem, not a
     Joplin API failure.

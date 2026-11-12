@@ -23,8 +23,8 @@ Syed Ali Turab, Medium (Jun 2026).
   provides for Joplin.
 - **Least privilege for your notes.** Think before pointing an AI at a store;
   keep anything sensitive out of what you expose. This informs our
-  [security & privacy](../../SECURITY.md) stance and the human-gated write flow
-  planned for v0.5.
+  [security & privacy](../../SECURITY.md) stance, the notebook filter, and note
+  creation that is off until you allow it and approved by you note by note.
 
 ## Related project
 

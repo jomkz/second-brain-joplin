@@ -5,7 +5,7 @@ from fastmcp import Client
 
 from second_brain_joplin.context import AppContext
 from second_brain_joplin.joplin_client import JoplinClient
-from second_brain_joplin.server import lifespan, mcp
+from second_brain_joplin.server import create_server, lifespan, mcp
 
 EXPECTED_TOOLS = {
     "joplin_overview",
@@ -53,26 +53,36 @@ async def test_joplin_recent_defaults_to_seven_days() -> None:
     assert days["default"] == 7
 
 
-async def test_no_write_tool_is_registered() -> None:
-    """joplin_create returns with the human-gated flow (v0.5, #10), not before."""
+async def test_no_write_tool_is_registered_by_default() -> None:
+    """A server is read-only until SBJ_WRITE_NOTEBOOKS says where notes may go (#10)."""
     async with Client(mcp) as client:
         names = {tool.name for tool in await client.list_tools()}
-    assert "joplin_create" not in names
+    assert names == EXPECTED_TOOLS
+    assert "joplin_create_note" not in names
 
 
 # Tools that change something: tool name -> why. Every other tool must be read-only.
 LOCAL_WRITERS = {"joplin_reindex": "updates the local search index only"}
+# Tools that write to Joplin, and only exist once the operator allows writing.
+JOPLIN_WRITERS = {"joplin_create_note": "adds one new note; never edits or deletes"}
 
 
-async def test_every_tool_declares_its_side_effects() -> None:
+@pytest.mark.parametrize("writes", [False, True])
+async def test_every_tool_declares_its_side_effects(writes: bool) -> None:
     """Walks the live tool list, so a new tool can't ship without annotations."""
-    async with Client(mcp) as client:
+    async with Client(create_server(writes=writes)) as client:
         tools = await client.list_tools()
+    names = {tool.name for tool in tools}
+    assert names == EXPECTED_TOOLS | (set(JOPLIN_WRITERS) if writes else set())
     for tool in tools:
         hints = tool.annotations
         assert hints is not None, f"{tool.name} has no annotations"
         assert hints.open_world_hint is False, tool.name
-        if tool.name in LOCAL_WRITERS:
+        if tool.name in JOPLIN_WRITERS:
+            assert hints.read_only_hint is False, tool.name
+            assert hints.destructive_hint is False, tool.name
+            assert hints.idempotent_hint is False, tool.name
+        elif tool.name in LOCAL_WRITERS:
             assert hints.read_only_hint is False, tool.name
             assert hints.destructive_hint is False, tool.name
             assert hints.idempotent_hint is True, tool.name

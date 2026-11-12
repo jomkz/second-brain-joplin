@@ -52,6 +52,9 @@ class Settings(BaseModel):
     # everything under it. Both empty means every notebook is visible.
     notebooks: tuple[str, ...] = ()
     exclude_notebooks: tuple[str, ...] = ()
+    # Where a note may be created (scope.py); empty means the server is read-only
+    # and registers no write tool at all.
+    write_notebooks: tuple[str, ...] = ()
 
     embedding_backend: str = DEFAULT_EMBEDDING_BACKEND
     embedding_model: str = ""
@@ -69,6 +72,11 @@ class Settings(BaseModel):
         """True when ``SBJ_NOTEBOOKS`` or ``SBJ_EXCLUDE_NOTEBOOKS`` names anything."""
         return bool(self.notebooks or self.exclude_notebooks)
 
+    @property
+    def writes_enabled(self) -> bool:
+        """True when ``SBJ_WRITE_NOTEBOOKS`` names anywhere a note may be created."""
+        return bool(self.write_notebooks)
+
     @classmethod
     def from_env(cls) -> "Settings":
         """Build settings from ``JOPLIN_*`` / ``SBJ_*`` environment variables."""
@@ -77,6 +85,7 @@ class Settings(BaseModel):
             joplin_api_token=os.environ.get("JOPLIN_API_TOKEN", ""),
             notebooks=_env_list("SBJ_NOTEBOOKS"),
             exclude_notebooks=_env_list("SBJ_EXCLUDE_NOTEBOOKS"),
+            write_notebooks=_env_list("SBJ_WRITE_NOTEBOOKS"),
             embedding_backend=os.environ.get("SBJ_EMBEDDING_BACKEND", DEFAULT_EMBEDDING_BACKEND),
             embedding_model=os.environ.get("SBJ_EMBEDDING_MODEL", ""),
             vector_store=os.environ.get("SBJ_VECTOR_STORE", DEFAULT_VECTOR_STORE),

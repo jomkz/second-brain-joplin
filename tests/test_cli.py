@@ -8,13 +8,13 @@ from typing import Any
 import pytest
 import respx
 from fakes import FakeEmbedder, FakeJoplin, FakeVectorIndex
+from fastmcp import FastMCP
 
 from second_brain_joplin import __version__, cli
 from second_brain_joplin.cli import build_parser
 from second_brain_joplin.remote import HttpOptions
 from second_brain_joplin.scope import NotebookScope
 from second_brain_joplin.semantic import backends
-from second_brain_joplin.server import mcp
 
 
 @pytest.fixture(autouse=True)
@@ -34,6 +34,7 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "SBJ_OAUTH_REDIRECT_URIS",
         "SBJ_NOTEBOOKS",
         "SBJ_EXCLUDE_NOTEBOOKS",
+        "SBJ_WRITE_NOTEBOOKS",
     ):
         monkeypatch.setenv(name, "")
         monkeypatch.delenv(name)
@@ -77,7 +78,7 @@ def test_main_serve_defaults_to_stdio(
     monkeypatch: pytest.MonkeyPatch, http_calls: list[HttpOptions]
 ) -> None:
     called: dict[str, Any] = {}
-    monkeypatch.setattr(mcp, "run", lambda *a, **k: called.setdefault("args", (a, k)))
+    monkeypatch.setattr(FastMCP, "run", lambda self, *a, **k: called.setdefault("args", (a, k)))
     cli.main(["serve"])
     assert called["args"] == ((), {})
     assert http_calls == []
@@ -86,7 +87,7 @@ def test_main_serve_defaults_to_stdio(
 def test_main_without_command_prints_help(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    monkeypatch.setattr(mcp, "run", lambda *a, **k: pytest.fail("mcp.run should not be called"))
+    monkeypatch.setattr(FastMCP, "run", lambda *a, **k: pytest.fail("no server should run"))
     cli.main([])
     out = capsys.readouterr().out
     assert "serve" in out
@@ -243,10 +244,56 @@ def test_notebooks_command_lists_ids_counts_and_visibility(
     cli.main(["notebooks"])
     assert capsys.readouterr().out.splitlines() == [
         "Notebook filter: 2 of 3 notebooks visible.",
-        f"hidden   {ids['Journal']}  Journal (3)",
-        f"visible  {ids['Work']}  Work (2)",
-        f"visible  {ids['Projects']}    Projects (1)",
+        "Note creation: off (SBJ_WRITE_NOTEBOOKS is not set).",
+        f"hidden    {ids['Journal']}  Journal (3)",
+        f"visible   {ids['Work']}  Work (2)",
+        f"visible   {ids['Projects']}    Projects (1)",
     ]
+
+
+def test_notebooks_command_marks_where_notes_may_be_created(
+    joplin: FakeJoplin, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    ids = _ids_by_title(joplin)
+    monkeypatch.setenv("SBJ_EXCLUDE_NOTEBOOKS", "Journal")
+    monkeypatch.setenv("SBJ_WRITE_NOTEBOOKS", "Projects")
+    cli.main(["notebooks"])
+    assert capsys.readouterr().out.splitlines() == [
+        "Notebook filter: 2 of 3 notebooks visible.",
+        "Note creation: allowed in the 1 marked writable.",
+        f"hidden    {ids['Journal']}  Journal (3)",
+        f"visible   {ids['Work']}  Work (2)",
+        f"writable  {ids['Projects']}    Projects (1)",
+    ]
+
+
+def test_notebooks_command_with_a_wrong_write_list_says_why(
+    joplin: FakeJoplin, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("SBJ_EXCLUDE_NOTEBOOKS", "Journal")
+    monkeypatch.setenv("SBJ_WRITE_NOTEBOOKS", "Journal")
+    with pytest.raises(SystemExit) as exc:
+        cli.main(["notebooks"])
+    assert exc.value.code == 2
+    assert "SBJ_WRITE_NOTEBOOKS: 'Journal' is hidden by the notebook filter" in (
+        capsys.readouterr().err
+    )
+
+
+def test_serve_refuses_to_start_with_a_wrong_write_list(
+    joplin: FakeJoplin,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    http_calls: list[HttpOptions],
+) -> None:
+    monkeypatch.setattr(FastMCP, "run", lambda *a, **k: pytest.fail("the server must not start"))
+    monkeypatch.setenv("SBJ_WRITE_NOTEBOOKS", "Inbocks")
+    for argv in (["serve"], ["serve", "--transport", "http", "--no-auth"]):
+        with pytest.raises(SystemExit) as exc:
+            cli.main(argv)
+        assert exc.value.code == 2
+        assert "SBJ_WRITE_NOTEBOOKS: no notebook is titled 'Inbocks'" in capsys.readouterr().err
+    assert http_calls == []
 
 
 def test_notebooks_command_without_a_filter_says_everything_is_visible(
@@ -255,7 +302,8 @@ def test_notebooks_command_without_a_filter_says_everything_is_visible(
     cli.main(["notebooks"])
     lines = capsys.readouterr().out.splitlines()
     assert lines[0] == "No notebook filter is set: all 3 notebooks are visible."
-    assert [line.split()[0] for line in lines[1:]] == ["visible"] * 3
+    assert lines[1] == "Note creation: off (SBJ_WRITE_NOTEBOOKS is not set)."
+    assert [line.split()[0] for line in lines[2:]] == ["visible"] * 3
 
 
 def test_notebooks_command_with_a_wrong_filter_shows_the_ids_and_the_reason(
@@ -269,7 +317,7 @@ def test_notebooks_command_with_a_wrong_filter_shows_the_ids_and_the_reason(
     captured = capsys.readouterr()
     assert "error: SBJ_NOTEBOOKS: no notebook is titled 'Wrok'" in captured.err
     # The tree still prints, unmarked: its ids are what fixes the filter.
-    assert captured.out.splitlines()[1] == f"?        {ids['Work']}  Work (2)"
+    assert captured.out.splitlines()[1] == f"?         {ids['Work']}  Work (2)"
     assert "visible" not in captured.out and "hidden" not in captured.out
 
 
@@ -286,7 +334,7 @@ def test_notebooks_command_with_joplin_down_exits_1(
 def test_notebook_lines_puts_a_notebook_with_an_unknown_parent_at_the_top() -> None:
     folders = [{"id": "b" * 32, "title": "Stray", "parent_id": "9" * 32}]
     lines = cli.notebook_lines(folders, [], NotebookScope())
-    assert lines == [f"visible  {'b' * 32}  Stray (0)"]
+    assert lines == [f"visible   {'b' * 32}  Stray (0)"]
 
 
 def test_serve_refuses_to_start_with_a_wrong_filter(
@@ -295,7 +343,7 @@ def test_serve_refuses_to_start_with_a_wrong_filter(
     capsys: pytest.CaptureFixture[str],
     http_calls: list[HttpOptions],
 ) -> None:
-    monkeypatch.setattr(mcp, "run", lambda *a, **k: pytest.fail("the server must not start"))
+    monkeypatch.setattr(FastMCP, "run", lambda *a, **k: pytest.fail("the server must not start"))
     monkeypatch.setenv("SBJ_EXCLUDE_NOTEBOOKS", "Jurnal")
     for argv in (["serve"], ["serve", "--transport", "http", "--no-auth"]):
         with pytest.raises(SystemExit) as exc:
@@ -309,7 +357,7 @@ def test_serve_starts_with_a_good_filter(
     joplin: FakeJoplin, monkeypatch: pytest.MonkeyPatch, http_calls: list[HttpOptions]
 ) -> None:
     started: list[str] = []
-    monkeypatch.setattr(mcp, "run", lambda *a, **k: started.append("stdio"))
+    monkeypatch.setattr(FastMCP, "run", lambda *a, **k: started.append("stdio"))
     monkeypatch.setenv("SBJ_NOTEBOOKS", "Work")
     cli.main(["serve"])
     cli.main(["serve", "--transport", "http", "--no-auth"])

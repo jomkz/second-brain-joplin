@@ -52,7 +52,7 @@ def make_lifespan(*, remote: bool = False, sync_interval_minutes: int = 0) -> Li
     return lifespan
 
 
-# stdio: no background work, every tool allowed.
+# stdio: no background work, and a full reindex is allowed.
 lifespan = make_lifespan()
 
 
@@ -79,13 +79,18 @@ def create_server(
     rate_limit_per_minute: int = 0,
     remote: bool = False,
     sync_interval_minutes: int = 0,
+    writes: bool | None = None,
 ) -> FastMCP:
-    """Build the MCP server with every tool and the ``/healthz`` route.
+    """Build the MCP server with its tools and the ``/healthz`` route.
 
     With ``auth`` (HTTP mode), ``allowed_ids`` adds the per-tool allowlist check as
     a second layer behind the token verifier. ``rate_limit_per_minute`` (0 = off)
     limits each caller. Every tool call is logged without its content (audit.py).
     ``remote`` and ``sync_interval_minutes`` are HTTP mode's: see make_lifespan.
+
+    ``writes`` says whether the write tool is registered; None reads it from the
+    environment as it is now (``SBJ_WRITE_NOTEBOOKS`` set), so build the server
+    after any env file is loaded.
     """
     if auth is not None and not allowed_ids:
         raise ValueError("a server with sign-in needs its allowed GitHub ids")
@@ -103,9 +108,13 @@ def create_server(
     server = FastMCP(
         "second-brain-joplin", lifespan=server_lifespan, auth=auth, middleware=middleware
     )
-    register_tools(server)
+    if writes is None:
+        writes = Settings.from_env().writes_enabled
+    register_tools(server, writes=writes)
     server.custom_route("/healthz", methods=["GET"])(healthz)
     return server
 
 
+# The server as the environment describes it at import time. `serve` builds its
+# own after loading any env file, so that file can switch the write tool on.
 mcp = create_server()

@@ -1,5 +1,7 @@
 """Tests for the Joplin REST API client."""
 
+import json
+
 import httpx
 import pytest
 import respx
@@ -220,3 +222,56 @@ async def test_list_note_versions_asks_for_each_notes_notebook(client: JoplinCli
     )
     await client.list_note_versions()
     assert route.calls.last.request.url.params["fields"] == "id,updated_time,parent_id"
+
+
+@respx.mock
+async def test_create_note_posts_the_note_with_the_callers_id(client: JoplinClient) -> None:
+    route = respx.post(f"{BASE_URL}/notes").mock(
+        return_value=httpx.Response(200, json={"id": "a" * 32, "created_time": 5})
+    )
+    created = await client.create_note("a" * 32, "Title", "Body **text**", "b" * 32)
+    assert created == {"id": "a" * 32, "created_time": 5}
+    request = route.calls.last.request
+    assert json.loads(request.content) == {
+        "id": "a" * 32,
+        "title": "Title",
+        "body": "Body **text**",
+        "parent_id": "b" * 32,
+    }
+    assert request.url.params["token"] == "tok"  # the token rides in the URL, as for reads
+
+
+@respx.mock
+async def test_create_note_maps_errors_like_any_other_request(client: JoplinClient) -> None:
+    respx.post(f"{BASE_URL}/notes").mock(return_value=httpx.Response(403))
+    with pytest.raises(JoplinAuthError):
+        await client.create_note("a" * 32, "T", "B", "b" * 32)
+    respx.post(f"{BASE_URL}/notes").mock(side_effect=httpx.ReadTimeout("slow"))
+    with pytest.raises(JoplinConnectionError, match="didn't answer"):
+        await client.create_note("a" * 32, "T", "B", "b" * 32)
+
+
+@respx.mock
+async def test_note_exists(client: JoplinClient) -> None:
+    respx.get(f"{BASE_URL}/notes/{'a' * 32}").mock(
+        return_value=httpx.Response(200, json={"id": "a" * 32})
+    )
+    respx.get(f"{BASE_URL}/notes/{'c' * 32}").mock(return_value=httpx.Response(404))
+    assert await client.note_exists("a" * 32) is True
+    assert await client.note_exists("c" * 32) is False
+
+
+@respx.mock
+async def test_note_exists_does_not_hide_joplin_being_down(client: JoplinClient) -> None:
+    respx.get(f"{BASE_URL}/notes/{'a' * 32}").mock(side_effect=httpx.ConnectError("boom"))
+    with pytest.raises(JoplinConnectionError):
+        await client.note_exists("a" * 32)
+
+
+@pytest.mark.parametrize("answer", [httpx.Response(200, text="ok"), httpx.Response(200, json=[1])])
+@respx.mock
+async def test_create_note_treats_any_2xx_answer_as_created(
+    client: JoplinClient, answer: httpx.Response
+) -> None:
+    respx.post(f"{BASE_URL}/notes").mock(return_value=answer)
+    assert await client.create_note("a" * 32, "T", "B", "b" * 32) == {}

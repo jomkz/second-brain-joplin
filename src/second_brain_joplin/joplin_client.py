@@ -2,7 +2,7 @@
 
 Thin async wrapper around the Joplin Web Clipper REST API. It returns raw API
 dicts; shaping into response models and applying business rules (excerpts, day
-filtering) is the tool layer's job.
+filtering, who may write where) is the tool layer's job.
 
 Requires Joplin Desktop running with the Web Clipper service enabled. The token
 is available at Tools → Options → Web Clipper.
@@ -67,9 +67,15 @@ class JoplinClient:
             raise JoplinNotFoundError()
         raise JoplinAPIError(f"Joplin returned an unexpected response (HTTP {status}).")
 
-    async def _get(self, path: str, params: JsonDict | None = None) -> httpx.Response:
+    async def _request(
+        self,
+        method: str,
+        path: str,
+        params: JsonDict | None = None,
+        json: JsonDict | None = None,
+    ) -> httpx.Response:
         try:
-            response = await self._client.get(path, params=params)
+            response = await self._client.request(method, path, params=params, json=json)
         except httpx.TimeoutException as exc:
             raise JoplinConnectionError(
                 f"Joplin didn't answer at {self.base_url} within "
@@ -83,6 +89,9 @@ class JoplinClient:
             ) from exc
         self._raise_for_status(response)
         return response
+
+    async def _get(self, path: str, params: JsonDict | None = None) -> httpx.Response:
+        return await self._request("GET", path, params=params)
 
     async def _get_paginated(
         self,
@@ -171,3 +180,33 @@ class JoplinClient:
             keep=keep,
             stop=lambda note: note.get("updated_time", 0) < since_ms,
         )
+
+    async def note_exists(self, note_id: str) -> bool:
+        """True if a note with this id exists (trash and conflicts aside)."""
+        try:
+            await self._get(f"/notes/{note_id}", {"fields": "id"})
+        except JoplinNotFoundError:
+            return False
+        return True
+
+    async def create_note(self, note_id: str, title: str, body: str, parent_id: str) -> JsonDict:
+        """Create a note with a chosen id in the notebook ``parent_id``; return Joplin's note.
+
+        Returns an empty dict if Joplin's answer isn't a JSON object.
+
+        The id is the caller's (32 hexadecimal characters) rather than one Joplin
+        makes up, so the caller can tell afterwards whether a request that failed
+        on the way back did create the note.
+        """
+        response = await self._request(
+            "POST",
+            "/notes",
+            json={"id": note_id, "title": title, "body": body, "parent_id": parent_id},
+        )
+        # Joplin answered 2xx, so the note exists. An answer that isn't the note
+        # as a JSON object must not turn that into a failure: the caller knows the id.
+        try:
+            data = response.json()
+        except ValueError:
+            return {}
+        return data if isinstance(data, dict) else {}

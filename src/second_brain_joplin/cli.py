@@ -15,9 +15,9 @@ from .context import AppContext
 from .errors import JoplinError, NotebookFilterError, SemanticUnavailableError
 from .joplin_client import JoplinClient, JsonDict
 from .remote import ServeConfigError, http_options, run_http, validate
-from .scope import NotebookScope, check_at_startup, scope_of
+from .scope import NotebookScope, WriteTargets, check_at_startup, scope_of, write_targets_of
 from .semantic.types import SyncStats
-from .server import create_server, mcp
+from .server import create_server
 
 TRANSPORTS = ("stdio", "http")
 
@@ -75,12 +75,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     notebooks = subparsers.add_parser(
         "notebooks",
-        help="List the notebooks with their ids and what the notebook filter shows.",
+        help="List the notebooks with their ids, and which are visible or writable.",
         description=(
-            "Print every notebook with its id and note count, marked visible or hidden "
-            "under SBJ_NOTEBOOKS / SBJ_EXCLUDE_NOTEBOOKS. Use it to find the ids for "
-            "those variables, and to check a filter before a client sees through it. "
-            "Needs Joplin Desktop running."
+            "Print every notebook with its id and note count, marked hidden, visible or "
+            "writable under SBJ_NOTEBOOKS, SBJ_EXCLUDE_NOTEBOOKS and SBJ_WRITE_NOTEBOOKS. "
+            "Use it to find the ids for those variables, and to check them before a "
+            "client sees through them. Needs Joplin Desktop running."
         ),
     )
     notebooks.add_argument(
@@ -108,12 +108,17 @@ def reindex(args: argparse.Namespace) -> None:
 
 
 def notebook_lines(
-    folders: list[JsonDict], notes_index: list[JsonDict], scope: NotebookScope | None
+    folders: list[JsonDict],
+    notes_index: list[JsonDict],
+    scope: NotebookScope | None,
+    targets: WriteTargets | None = None,
 ) -> list[str]:
     """One line per notebook, as an indented tree: mark, id, title and note count.
 
     Every notebook is listed, hidden ones too: this is the operator's own view.
-    ``scope`` is None when the filter doesn't resolve, and the mark is then ``?``.
+    The mark is ``writable`` (visible, and a note may be created there),
+    ``visible`` or ``hidden``. ``scope`` is None when the settings don't resolve,
+    and the mark is then ``?``.
     """
     counts: dict[str, int] = {}
     for note in notes_index:
@@ -131,11 +136,13 @@ def notebook_lines(
         for folder in children_of.get(parent, []):
             if scope is None:
                 mark = "?"
+            elif targets is not None and targets.title_of(folder["id"]) is not None:
+                mark = "writable"
             else:
                 mark = "visible" if scope.allows(folder["id"]) else "hidden"
             title = folder.get("title", "")
             count = counts.get(folder["id"], 0)
-            lines.append(f"{mark:<7}  {folder['id']}  {'  ' * depth}{title} ({count})")
+            lines.append(f"{mark:<8}  {folder['id']}  {'  ' * depth}{title} ({count})")
             walk(folder["id"], depth + 1)
 
     walk("", 0)
@@ -156,15 +163,20 @@ def notebooks(_args: argparse.Namespace) -> None:
     folders, notes_index = asyncio.run(fetch_notebooks(settings))
     try:
         scope = scope_of(settings, folders)
+        targets = write_targets_of(settings, folders)
     except NotebookFilterError:
-        # Show the tree anyway: its ids are what fixes the filter.
+        # Show the tree anyway: its ids are what fixes the settings.
         print("\n".join(notebook_lines(folders, notes_index, None)))
         raise
     if scope.visible is None:
         print(f"No notebook filter is set: all {len(folders)} notebooks are visible.")
     else:
         print(f"Notebook filter: {len(scope.visible)} of {len(folders)} notebooks visible.")
-    print("\n".join(notebook_lines(folders, notes_index, scope)))
+    if settings.writes_enabled:
+        print(f"Note creation: allowed in the {len(targets.titles)} marked writable.")
+    else:
+        print("Note creation: off (SBJ_WRITE_NOTEBOOKS is not set).")
+    print("\n".join(notebook_lines(folders, notes_index, scope, targets)))
 
 
 def load_env_file(path: Path) -> None:
@@ -199,7 +211,7 @@ def serve(args: argparse.Namespace) -> None:
         if http_only:
             raise ServeConfigError(f"{', '.join(http_only)} only apply to --transport http")
         asyncio.run(check_at_startup(Settings.from_env()))
-        mcp.run()
+        create_server().run()
         return
     options = http_options(
         host=args.host,

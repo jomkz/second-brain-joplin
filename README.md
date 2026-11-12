@@ -7,7 +7,7 @@ An MCP server that turns your [Joplin](https://joplinapp.org/) knowledge base in
 
 Inspired by [second-brain-mcp](https://github.com/noesskeetit/second-brain-mcp) (for Obsidian). This project covers the same use case for Joplin: your AI assistant reads, searches, and files notes directly, without leaving the tool you already use.
 
-> **Status:** Pre-alpha — the read tools, semantic search and remote access (a Claude custom connector, [docs/remote-access.md](docs/remote-access.md)) are live, and note creation (human-gated) lands in v0.5. See the [roadmap](#roadmap) and open issues.
+> **Status:** Pre-alpha — the read tools, semantic search, remote access (a Claude custom connector, [docs/remote-access.md](docs/remote-access.md)), a notebook filter and note creation (off until you allow it) are live. See the [roadmap](#roadmap) and open issues.
 
 ---
 
@@ -77,11 +77,17 @@ connectors (claude.ai, the Claude apps, Cowork) can reach it through a tunnel. S
 | `joplin_recent` | Notes modified in the last N days (`days` 1–3650, `limit` 1–100) | No |
 | `joplin_semantic_search` | Find notes by meaning (embeddings; `limit` 1–50) | No |
 | `joplin_reindex` | Build/refresh the semantic index | The local index only, never Joplin |
+| `joplin_create_note` | Add a new markdown note to a notebook you allow (`title`, `body`, `notebook` by title or id) | A new note; never edits, moves or deletes. Off by default |
 
-Every tool carries MCP annotations (read-only, or for `joplin_reindex` local and
-non-destructive), so clients can tell what each one does. Note creation
-(`joplin_create`) returns with the human-gated write workflow in v0.5; until then
-no write tool is registered.
+Every tool carries MCP annotations (read-only; for `joplin_reindex` local and
+non-destructive; for `joplin_create_note` a write that only adds), so clients
+can tell what each one does.
+
+`joplin_create_note` exists only once you set `SBJ_WRITE_NOTEBOOKS` to the
+notebooks that may receive notes (ids or titles, or `*` for every visible one).
+Your client's approval prompt is the check on each note, and the call carries the
+note in readable form so the prompt shows what will be written. See
+[Creating notes](docs/remote-access.md#creating-notes).
 
 To limit which notebooks these tools can see, set `SBJ_NOTEBOOKS` (only these) or
 `SBJ_EXCLUDE_NOTEBOOKS` (not these) to notebook ids or titles;
@@ -90,9 +96,8 @@ To limit which notebooks these tools can see, set `SBJ_NOTEBOOKS` (only these) o
 
 > The read tools query a running Joplin instance as of v0.2. Semantic search
 > (`joplin_semantic_search` / `joplin_reindex`) landed in v0.3 and needs the
-> optional `[semantic]` extra (see [Semantic search](#semantic-search)).
-> The human-gated write flow is tracked in the
-> [v0.5 milestone](https://github.com/jomkz/second-brain-joplin/milestone/4).
+> optional `[semantic]` extra (see [Semantic search](#semantic-search)). The
+> notebook filter and note creation landed in v0.5.
 
 ---
 
@@ -131,7 +136,7 @@ fresh incrementally — only notes changed since the last sync are re-embedded.
 | Storage | Plain `.md` files on disk | Joplin REST API |
 | Requires app running | No | Yes (Joplin + Web Clipper) |
 | Semantic search | Yes (bge-m3) | Yes (FastEmbed / bge-m3) |
-| Write support | Human-gated | Human-gated (v0.5) |
+| Write support | Human-gated | New notes only, where you allow, approved in your client |
 | Install | `uvx second-brain-mcp` | `uvx second-brain-joplin` |
 
 ---
@@ -157,7 +162,7 @@ The [PARA method](https://fortelabs.com/blog/para/) works well with Joplin. See 
 
 ## Security & privacy
 
-By default (stdio) this server keeps your notes local: it talks only to Joplin's Web Clipper REST API on `localhost` and runs on your own machine. HTTP mode, for a Claude custom connector, deliberately sends what Claude reads to Anthropic, behind GitHub sign-in limited to your account ([remote access](docs/remote-access.md)). Anything an MCP client can read, the connected AI can read — so apply least privilege and don't expose notebooks with credentials or other sensitive data; a notebook filter (`SBJ_NOTEBOOKS` / `SBJ_EXCLUDE_NOTEBOOKS`) keeps chosen notebooks out of every tool. Note creation is planned as an explicit human-gated flow (v0.5); until then the server does no silent writes.
+By default (stdio) this server keeps your notes local: it talks only to Joplin's Web Clipper REST API on `localhost` and runs on your own machine. HTTP mode, for a Claude custom connector, deliberately sends what Claude reads to Anthropic, behind GitHub sign-in limited to your account ([remote access](docs/remote-access.md)). Anything an MCP client can read, the connected AI can read — so apply least privilege and don't expose notebooks with credentials or other sensitive data; a notebook filter (`SBJ_NOTEBOOKS` / `SBJ_EXCLUDE_NOTEBOOKS`) keeps chosen notebooks out of every tool. The server is read-only until you list the notebooks that may receive notes; it can then add a new note there and nothing else, and your client's approval prompt is the check on each one.
 
 Two caveats apply once you enable semantic search: it writes a **local index** (under your XDG data dir by default) that stores note text excerpts and titles alongside the embeddings, and it downloads the embedding model **once over the network** on the first reindex. Your note *content* is embedded locally and never leaves your machine. See [SECURITY.md](SECURITY.md) for details and how to report a vulnerability.
 
