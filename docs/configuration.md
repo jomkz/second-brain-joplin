@@ -29,7 +29,10 @@ For each setting the server takes the first of these that gives a value:
 Things to know:
 
 - **Settings are read when the server starts.** Restart it after a change. In
-  Claude Code, `/mcp` reconnects a server.
+  Claude Code, `/mcp` reconnects a server. Claude's apps keep the tool list they
+  read from a connector, so after a change that adds a tool, takes one away or
+  marks one differently, refresh that list as well
+  ([troubleshooting](troubleshooting.md#http-mode)).
 - **A variable set to nothing doesn't count as set** in step 2, so an empty
   `SBJ_NOTEBOOKS=` exported by a shell can't cancel the filter written in your
   env file. If a filter variable is still empty after every source is read, the

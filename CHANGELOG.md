@@ -6,6 +6,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The guides said a new chat is enough for Claude to see a changed tool. It
+  isn't** (#68). Claude's apps keep the tool list they read from a connector.
+  After a server was restarted with `SBJ_ASK_EVERY_TIME=false`, new Claude Duet
+  chats went on showing the prompt that can't be answered until the connector's
+  tool list was refreshed; then Duet created notes without asking.
+  `docs/troubleshooting.md`, `docs/remote-access.md` and
+  `docs/configuration.md` now say to refresh the list after any change that
+  adds a tool, takes one away or marks one differently, and that taking the
+  setting out again needs the same refresh before the prompt is back. The table
+  in [Who confirms each note](docs/remote-access.md#who-confirms-each-note)
+  gains a column for what each client did with the mark off.
+
 ## [1.1.0]
 
 One new setting, one change to how the server reaches Joplin, and guides that
