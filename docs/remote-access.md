@@ -325,7 +325,8 @@ creation on, HTTP mode says in its log at start-up that the setting is off, and
 `second-brain-joplin notebooks` says so too.
 
 **The change counts once Claude has read the tool list again.** Restart the
-server, then refresh the connector's tool list in Claude
+server, then refresh the connector's tool list in Claude: **Refresh tools
+list** in the connector's three-dot menu
 ([A new tool or setting doesn't show up in Claude](troubleshooting.md#http-mode)).
 A new chat is not enough: after the restart, new Duet chats went on showing the
 prompt that can't be answered until the list was refreshed. Only that direction
