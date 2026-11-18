@@ -279,15 +279,17 @@ text. What you approve is what gets written.
 Whether a client asks is up to the client. The server does what it can to make
 Claude's clients ask: it marks `joplin_create_note` with
 `"anthropic/requiresUserInteraction": true`, which Claude Code documents as the
-way for a tool to require approval on every call. What each client did with
-that mark when tested in November 2026:
+way for a tool to require approval on every call. The table shows what each
+client did when tested in November 2026, with that mark and with the mark left
+off ([below](#a-client-whose-prompt-cant-be-answered)). In Claude's apps the
+tool was on "Needs approval" throughout.
 
-| Client | With the mark, which is the default |
-|---|---|
-| Claude Code | Asks on every call, with no "don't ask again", whatever allow rules are in force. Where it can't put the prompt to a person (`dontAsk` mode, a run with `--permission-prompt-tool`) it refuses the call |
-| A chat on claude.ai | Asked before each note, in Manual and in Auto mode, with the tool on "Needs approval". Not tested with "Always allow" |
-| Claude Duet | Shows a prompt with no way to approve it, so no note can be created ([below](#a-client-whose-prompt-cant-be-answered)) |
-| Any other client | Not known. Find out how yours treats a tool that isn't read-only before you turn note creation on |
+| Client | With the mark, which is the default | With `SBJ_ASK_EVERY_TIME=false` |
+|---|---|---|
+| Claude Code | Asks on every call, with no "don't ask again", whatever allow rules are in force. Where it can't put the prompt to a person (`dontAsk` mode, a run with `--permission-prompt-tool`) it refuses the call | Not tested. Its ordinary permission rules apply |
+| A chat on claude.ai | Asked before each note, in Manual and in Auto mode. Not tested with "Always allow" | Not tested |
+| Claude Duet | Shows a prompt with no way to approve it, so no note can be created | Created the note without asking, on the web and in the phone app |
+| Any other client | Not known. Find out how yours treats a tool that isn't read-only before you turn note creation on | Not known |
 
 **"Needs approval" is not that check.** Claude's apps give each connector tool
 a permission, under **Customize → Connectors**, on the connector's
@@ -309,8 +311,9 @@ carries the mark. Know what you give up:
   for.
 - **Without the mark, a client treats `joplin_create_note` like any other tool
   that writes.** Claude Code follows its ordinary permission rules, so an allow
-  rule or "don't ask again" stops it asking. Claude's apps in Auto mode can
-  create a note without asking you, unless the tool is set to "Always ask".
+  rule or "don't ask again" stops it asking. Claude Duet created notes without
+  asking at all when tested. Claude's apps in Auto mode can do the same, unless
+  the tool is set to "Always ask".
 - **What the server enforces stays as it is** ([below](#what-the-server-enforces)):
   the listed notebooks only, the size limits, a record of every note, and no
   second copy from a repeat. A note you didn't ask for can land in a notebook
@@ -320,6 +323,14 @@ Only `0`, `false`, `no` or `off` turns it off. A value that is neither a yes nor
 a no stops the server from starting, so a typo can't pass for either. With note
 creation on, HTTP mode says in its log at start-up that the setting is off, and
 `second-brain-joplin notebooks` says so too.
+
+**The change counts once Claude has read the tool list again.** Restart the
+server, then refresh the connector's tool list in Claude
+([A new tool or setting doesn't show up in Claude](troubleshooting.md#http-mode)).
+A new chat is not enough: after the restart, new Duet chats went on showing the
+prompt that can't be answered until the list was refreshed. Only that direction
+was tested. Assume the same in the other: when you take the setting out again,
+refresh the list and check that the prompt is back.
 
 ### What the server enforces
 

@@ -144,9 +144,11 @@ server, delete the index directory
 ## Creating notes
 
 **The assistant has no `joplin_create_note` tool.** The tool exists only when
-`SBJ_WRITE_NOTEBOOKS` is set. After setting it, restart the server and reconnect
-the client: a client reads the list of tools when it connects, and a chat that
-was already open keeps the old list.
+`SBJ_WRITE_NOTEBOOKS` is set. After setting it, restart the server and make the
+client read the list of tools again: a chat that was already open keeps the old
+list. In Claude Code, `/mcp` reconnects a server. Claude's apps keep the list
+they read from a connector until you refresh it
+([A new tool or setting doesn't show up in Claude](#http-mode)).
 
 **"A note can't be created in that notebook."** The notebook isn't on the list
 in `SBJ_WRITE_NOTEBOOKS`, or the filter hides it. The answer names the notebooks
@@ -160,11 +162,15 @@ answer. Create the note from a chat on claude.ai or from Claude Code instead.
 To let such a client create notes, the server's operator can set
 `SBJ_ASK_EVERY_TIME=false`, which also means notes can be created without
 asking ([A client whose prompt can't be answered](remote-access.md#a-client-whose-prompt-cant-be-answered)).
+If the server already runs with that setting and the prompt still has no Allow,
+Claude is using the tool list it read before the change: refresh it
+([A new tool or setting doesn't show up in Claude](#http-mode)).
 
 **The assistant created a note without asking you.** The approval prompt
 belongs to your client. Check three things. If the server runs with
 `SBJ_ASK_EVERY_TIME=false`, nothing tells the client that this tool has to be
-asked about: remove that setting to get the prompt back. In Claude's apps,
+asked about: remove that setting, restart the server and refresh the
+connector's tool list in Claude to get the prompt back. In Claude's apps,
 **Always allow** on the tool turns the prompt off, and in Auto mode a tool on
 **Needs approval** can run without asking: choose **Always ask** on the
 connector's Permissions tab if your account has it, or use Manual mode
@@ -236,9 +242,14 @@ the tunnel is down.
 
 **Every client was signed out.** `SBJ_JWT_SIGNING_KEY` changed. Sign in again.
 
-**A new tool or setting doesn't show up in Claude.** Claude reads the tool list
-when a chat connects. Start a new chat, or disconnect and reconnect the
-connector.
+**A new tool or setting doesn't show up in Claude.** Claude's apps keep the tool
+list they read from a connector, with each tool's description and marks, and a
+new chat can still be given the old one. Seen in November 2026: after a restart
+that changed how `joplin_create_note` is marked, new Claude Duet chats on the
+web and in the phone app behaved as before until the list was refreshed. Under
+**Customize → Connectors**, open the connector and choose the item in its
+three-dot menu that refreshes the tool list, then start a new chat. If your
+account has no such item, disconnect and reconnect the connector.
 
 **"Rate limit exceeded for client: …".** Too many tool calls at once: the limit
 is `SBJ_RATE_LIMIT_PER_MINUTE` calls a minute (60 by default), and a burst may
