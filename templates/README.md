@@ -48,8 +48,8 @@ you can ask for a note made from one:
 The assistant reads the template, fills it in and creates the note with
 `joplin_create_note`, which needs
 [`SBJ_WRITE_NOTEBOOKS`](../docs/configuration.md#notebooks) to allow the
-notebook. Keep your client set to ask before each note, and it shows you the
-note before it is written
+notebook. A client that asks before each note shows you the note before it is
+written. Not every client asks
 ([Who confirms each note](../docs/remote-access.md#who-confirms-each-note)).
 
 The weekly review works the same way:

@@ -42,7 +42,12 @@ Things to know:
 - **Lists are comma-separated,** and spaces around an entry are ignored. A
   notebook whose title contains a comma has to be named by its id.
 - **True or false:** `1`, `true`, `yes` and `on` mean true, in any letter case.
-  Anything else means false.
+  Anything else means false. `SBJ_ASK_EVERY_TIME` is stricter, because it
+  switches a protection: only `0`, `false`, `no` or `off` turns it off, an empty
+  value counts as unset, and any other value stops the server from starting. To
+  force it on over an env file that says `false`, set it to `true` in the
+  environment: an empty value there doesn't, because a variable set to nothing
+  doesn't count as set.
 - **`.env` is for development.** Running from a clone of this repository, the
   server reads the `.env` at the top of that clone
   ([CONTRIBUTING.md](../CONTRIBUTING.md#running-the-server-locally)). An
@@ -71,6 +76,11 @@ the token in the address of each request, which is why Joplin should only ever
 be reached on the same machine, and why HTTP mode keeps that address out of its
 logs.
 
+Requests to Joplin always go straight to that address. Proxy settings
+(`HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, or the system's own on macOS and
+Windows) are ignored for them: a proxy would be handed the token, and couldn't
+reach the Joplin on your machine anyway.
+
 ## Notebooks
 
 These apply to every tool, over stdio and HTTP alike.
@@ -80,6 +90,7 @@ These apply to every tool, over stdio and HTTP alike.
 | `SBJ_NOTEBOOKS` | none: every notebook | Only these notebooks are visible |
 | `SBJ_EXCLUDE_NOTEBOOKS` | none | These notebooks are hidden |
 | `SBJ_WRITE_NOTEBOOKS` | none: read-only | New notes may be created in these notebooks. `*` means every visible notebook. Without it `joplin_create_note` doesn't exist |
+| `SBJ_ASK_EVERY_TIME` | `true` | `joplin_create_note` is marked to ask Claude's clients to put every call to a person. `false` leaves the mark off, for a client whose prompt for a marked tool can't be answered. Notes can then be created without asking you: read [what you give up](remote-access.md#a-client-whose-prompt-cant-be-answered) first |
 
 - An entry is a notebook's **id or its exact title**, and covers that notebook
   and every notebook under it. Prefer ids: an id survives a rename, and a title
@@ -218,7 +229,9 @@ visible   0b7e3f9a1c2d4e5f8a7b6c5d4e3f2a1b    Projects (31)
 
 It lists hidden notebooks too, because this is your own terminal. When the
 settings don't match Joplin's notebooks, it still prints the tree, with `?` for
-each mark, and then says which entry is wrong.
+each mark, and then says which entry is wrong. With `SBJ_ASK_EVERY_TIME=false`
+and note creation on, a third line at the top says so:
+`Asking before each note: left to the client (SBJ_ASK_EVERY_TIME is off).`
 
 ## Optional installs
 

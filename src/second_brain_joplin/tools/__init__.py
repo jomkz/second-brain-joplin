@@ -11,9 +11,12 @@ from fastmcp import FastMCP
 from . import read, semantic, write
 
 
-def register_tools(mcp: FastMCP, *, writes: bool = False) -> None:
-    """Register the MCP tools on the given FastMCP server; the write tool on request."""
+def register_tools(mcp: FastMCP, *, writes: bool = False, ask_every_time: bool = True) -> None:
+    """Register the MCP tools on the given FastMCP server; the write tool on request.
+
+    ``ask_every_time`` is the write tool's: see :func:`write.register`.
+    """
     read.register(mcp)
     semantic.register(mcp)
     if writes:
-        write.register(mcp)
+        write.register(mcp, ask_every_time=ask_every_time)

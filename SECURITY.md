@@ -13,7 +13,11 @@ public issue. We aim to acknowledge reports within a few days.
 - **Joplin stays local.** The server talks to Joplin's Web Clipper REST API on
   `localhost` (default `http://localhost:41184`). The Joplin API token is read from
   the environment (`JOPLIN_API_TOKEN`), never leaves the machine, and is never
-  committed — keep it out of version control.
+  committed — keep it out of version control. Requests to Joplin go straight to
+  that address and ignore any proxy set in the environment or the system,
+  because Joplin's API takes the token in the address of each request. Before
+  1.1.0 a proxy named by `HTTP_PROXY` or `ALL_PROXY` in the server's environment
+  received those requests, unless `NO_PROXY` covered `localhost`: update.
 - **Settings come only from where you put them.** The server is configured by
   the environment it is started with and by a file you name with `--env-file`.
   It reads no settings file from the directory it is started in, which is
@@ -79,9 +83,18 @@ public issue. We aim to acknowledge reports within a few days.
   notebooks and does nothing else: it can't edit, move or delete, and it can't
   write to a notebook the filter hides. The check on each note is your client's
   approval prompt, and the call carries the note in readable form so the prompt
-  shows what will be written. Keep that prompt on (in claude.ai, "Needs
-  approval" rather than "Allow always"); Claude Code is told to ask on every
-  call. The server can't ask you itself on every client, so it doesn't claim to:
+  shows what will be written. Whether a client asks is the client's decision.
+  The server marks the tool to ask Claude's clients to put every call to a
+  person: Claude Code then asks on every call, and refuses the call where
+  nobody can be asked. Don't rely on a per-tool setting alone: in Claude's apps
+  a tool on "Needs approval" can run without asking in Auto mode, and "Always
+  ask", where an account has it, is the only per-tool setting that asks in
+  every mode. `SBJ_ASK_EVERY_TIME=false`
+  leaves the mark off, for a client whose prompt for a marked tool can't be
+  answered. Notes can then be created in the listed notebooks without asking
+  you, so set it only if you accept that
+  ([Who confirms each note](docs/remote-access.md#who-confirms-each-note)).
+  The server can't ask you itself on every client, so it doesn't claim to:
   it limits where a note can land, logs each attempt by id, and returns the note
   already made when the same request is repeated within ten minutes
   ([Creating notes](docs/remote-access.md#creating-notes)). The semantic tools

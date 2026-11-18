@@ -6,6 +6,61 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.1.0]
+
+One new setting, one change to how the server reaches Joplin, and guides that
+now say what Claude's clients do when a note is about to be created. A server
+that sets nothing new behaves as before, with one difference: its requests to
+Joplin no longer go through a proxy named in its environment.
+
+### Added
+
+- **`SBJ_ASK_EVERY_TIME`** (#74): a way to let a client create notes when it
+  can't answer the every-time prompt. `joplin_create_note` is marked with
+  `anthropic/requiresUserInteraction`, which makes Claude Code ask on every
+  call. Claude Duet shows the prompt for a marked tool with no way to approve
+  it, so it could not create a note at all (#68). `SBJ_ASK_EVERY_TIME=false`
+  leaves the mark off. The default is unchanged, and so is what the server
+  enforces: the listed notebooks only, the size limits, a record of every note,
+  and no second copy from a repeat. With the mark off, whether you are asked
+  before a note is up to each client, and Claude's apps in Auto mode can create
+  one without asking, so read
+  [A client whose prompt can't be answered](docs/remote-access.md#a-client-whose-prompt-cant-be-answered)
+  first. Only `0`, `false`, `no` or `off` turns it off, and a value that is
+  neither a yes nor a no stops the server from starting. With note creation on,
+  HTTP mode says in its log at start-up that the setting is off, and
+  `second-brain-joplin notebooks` says so too.
+
+### Changed
+
+- **Requests to Joplin ignore proxy settings** (#65). Joplin's API takes its
+  token in the address of every request. With `HTTP_PROXY` or `ALL_PROXY` set in
+  the server's environment, as on a work laptop or under a shell profile that
+  exports one, and no `NO_PROXY` covering `localhost`, every request to Joplin
+  went to that proxy instead, token included, and every tool failed, usually
+  with `Joplin returned an unexpected response (HTTP 502)`. The server now
+  reaches Joplin directly, whatever the environment or the system's proxy
+  settings say. Sign-in with GitHub in HTTP mode reaches the internet as before.
+  Two setups are affected, both outside the guides, which have always put Joplin
+  on the same machine over plain `http`: a Joplin on another machine reached
+  through a proxy no longer works, and for an `https` address the Joplin client
+  no longer reads `SSL_CERT_FILE` or `SSL_CERT_DIR`.
+
+### Fixed
+
+- **The guides said more about approval prompts than the clients deliver**
+  (#74, found in #68). Three things were wrong. They told you to keep
+  `joplin_create_note` on "Needs approval" in claude.ai as the check on each
+  note, but in Auto mode in Claude's apps a tool on that setting can run without
+  asking. They said that clients other than
+  Claude Code ignore the tool's every-time mark, but Claude Duet acts on it and
+  then can't approve the call. And they said that Claude Code asks in every
+  permission mode, but where it can't prompt it refuses the call. `SECURITY.md`,
+  [Who confirms each note](docs/remote-access.md#who-confirms-each-note), the
+  tool reference, the installation and troubleshooting guides and the README now
+  say what each client did when tested in November 2026, and which settings do
+  make Claude ask.
+
 ## [1.0.1]
 
 Two fixes to where the server takes its settings from. Each closes a way for a
@@ -377,7 +432,8 @@ Initial project skeleton — the MCP server starts and all tools are stubbed.
 - Documentation: install, notebook structure (PARA), project management,
   releasing runbook, security policy, and an inspiration/reference note.
 
-[Unreleased]: https://github.com/jomkz/second-brain-joplin/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/jomkz/second-brain-joplin/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/jomkz/second-brain-joplin/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/jomkz/second-brain-joplin/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.5.0...v1.0.0
 [0.5.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.4.0...v0.5.0

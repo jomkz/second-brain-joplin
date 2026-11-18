@@ -54,7 +54,12 @@ def vault(joplin: FakeJoplin) -> Vault:
 
 @pytest.fixture(autouse=True)
 def _no_notebook_settings(monkeypatch: pytest.MonkeyPatch) -> None:
-    for name in ("SBJ_NOTEBOOKS", "SBJ_EXCLUDE_NOTEBOOKS", "SBJ_WRITE_NOTEBOOKS"):
+    for name in (
+        "SBJ_NOTEBOOKS",
+        "SBJ_EXCLUDE_NOTEBOOKS",
+        "SBJ_WRITE_NOTEBOOKS",
+        "SBJ_ASK_EVERY_TIME",
+    ):
         monkeypatch.delenv(name, raising=False)
 
 
@@ -115,6 +120,96 @@ async def test_the_tool_declares_what_it_does_and_asks_for_a_prompt_every_time()
     assert set(tool.input_schema["required"]) == {"title", "body", "notebook"}
 
 
+ASK_KEY = "anthropic/requiresUserInteraction"
+
+
+async def _create_tool(server: FastMCP) -> Any:
+    async with Client(server) as client:
+        return next(t for t in await client.list_tools() if t.name == "joplin_create_note")
+
+
+async def test_the_mark_can_be_left_off_and_nothing_else_changes() -> None:
+    marked = await _create_tool(create_server(writes=True))
+    plain = await _create_tool(create_server(writes=True, ask_every_time=False))
+    assert ASK_KEY not in (plain.meta or {})
+    # Only that one key goes: whatever else the tool carries is the same.
+    assert {k: v for k, v in (marked.meta or {}).items() if k != ASK_KEY} == (plain.meta or {})
+    assert plain.annotations == marked.annotations
+    assert plain.input_schema == marked.input_schema
+    assert plain.description == marked.description
+
+
+@pytest.mark.parametrize(
+    ("raw", "marked"),
+    [(None, True), ("", True), ("true", True), ("flase", True), ("false", False), ("0", False)],
+)
+async def test_the_environment_decides_the_mark_and_only_a_plain_no_removes_it(
+    monkeypatch: pytest.MonkeyPatch, raw: str | None, marked: bool
+) -> None:
+    monkeypatch.setenv("SBJ_WRITE_NOTEBOOKS", "Inbox")
+    if raw is not None:
+        monkeypatch.setenv("SBJ_ASK_EVERY_TIME", raw)
+    tool = await _create_tool(create_server())
+    assert (ASK_KEY in (tool.meta or {})) is marked
+    if marked:
+        assert tool.meta[ASK_KEY] is True
+
+
+async def test_an_explicit_choice_wins_over_the_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SBJ_ASK_EVERY_TIME", "false")
+    tool = await _create_tool(create_server(writes=True, ask_every_time=True))
+    assert tool.meta is not None and tool.meta[ASK_KEY] is True
+
+
+async def test_turning_the_mark_off_never_registers_the_tool_by_itself(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SBJ_ASK_EVERY_TIME", "false")
+    assert "joplin_create_note" not in await _tool_names(create_server())
+
+
+async def test_a_note_is_created_the_same_way_without_the_mark(
+    vault: Vault, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The setting changes what the tool says about itself, not what it enforces."""
+    monkeypatch.setenv("SBJ_WRITE_NOTEBOOKS", "Inbox")
+    monkeypatch.setenv("SBJ_ASK_EVERY_TIME", "false")
+    async with Client(create_server()) as client:
+        made = await client.call_tool(
+            "joplin_create_note", {"title": "T", "body": "b", "notebook": "Inbox"}
+        )
+        with pytest.raises(ToolError) as refused:
+            await client.call_tool(
+                "joplin_create_note", {"title": "T", "body": "b", "notebook": "Work"}
+            )
+    assert made.structured_content["notebook_id"] == vault.inbox
+    assert "A note can't be created in that notebook" in str(refused.value)
+
+
+@pytest.mark.parametrize("transport_args", [[], ["--transport", "http", "--no-auth"]])
+def test_serve_leaves_the_mark_off_when_an_env_file_says_so(
+    transport_args: list[str], tmp_path: Any, joplin: FakeJoplin, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    joplin.notebook("Inbox")
+    env_file = tmp_path / "serve.env"
+    env_file.write_text("SBJ_WRITE_NOTEBOOKS=Inbox\nSBJ_ASK_EVERY_TIME=false\n")
+    monkeypatch.setattr(cli, "load_dotenv", lambda *a, **k: False)
+    for name in ("SBJ_WRITE_NOTEBOOKS", "SBJ_ASK_EVERY_TIME"):
+        monkeypatch.setenv(name, "")
+        monkeypatch.delenv(name)  # so monkeypatch removes it again afterwards
+    built: list[FastMCP] = []
+    monkeypatch.setattr(FastMCP, "run", lambda self, *a, **k: built.append(self))
+    monkeypatch.setattr(cli, "run_http", lambda server, options: built.append(server))
+
+    cli.main(["serve", "--env-file", str(env_file), *transport_args])
+
+    assert len(built) == 1
+    tool = asyncio.run(_create_tool(built[0]))
+    assert ASK_KEY not in (tool.meta or {})
+
+
 @pytest.mark.parametrize("transport_args", [[], ["--transport", "http", "--no-auth"]])
 def test_serve_registers_the_tool_from_an_env_file(
     transport_args: list[str], tmp_path: Any, joplin: FakeJoplin, monkeypatch: pytest.MonkeyPatch
@@ -134,6 +229,9 @@ def test_serve_registers_the_tool_from_an_env_file(
 
     assert len(built) == 1
     assert "joplin_create_note" in asyncio.run(_tool_names(built[0]))
+    # And as `serve` builds it, on either transport, the tool asks every time.
+    tool = asyncio.run(_create_tool(built[0]))
+    assert tool.meta is not None and tool.meta[ASK_KEY] is True
 
 
 def test_serve_without_the_setting_builds_a_read_only_server(

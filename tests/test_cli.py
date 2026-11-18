@@ -15,6 +15,7 @@ from fastmcp import FastMCP
 
 from second_brain_joplin import __version__, cli
 from second_brain_joplin.cli import build_parser
+from second_brain_joplin.config import Settings
 from second_brain_joplin.remote import HttpOptions
 from second_brain_joplin.scope import NotebookScope
 from second_brain_joplin.semantic import backends
@@ -38,6 +39,7 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "SBJ_NOTEBOOKS",
         "SBJ_EXCLUDE_NOTEBOOKS",
         "SBJ_WRITE_NOTEBOOKS",
+        "SBJ_ASK_EVERY_TIME",
     ):
         monkeypatch.setenv(name, "")
         monkeypatch.delenv(name)
@@ -586,3 +588,150 @@ def test_notebooks_command_lists_notebooks_that_contain_each_other(
     # Untraceable, so hidden under an exclude list; listed once each all the same.
     assert out.count(f"hidden    {a}") == 1 and out.count(f"hidden    {b}") == 1
     assert len(out.splitlines()) == 2 + 5
+
+
+# -- SBJ_ASK_EVERY_TIME ----------------------------------------------------------
+
+
+@pytest.mark.parametrize("raw", ["flase", "2", "maybe"])
+def test_serve_refuses_an_ask_every_time_value_that_is_neither_yes_nor_no(
+    raw: str,
+    joplin: FakeJoplin,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    http_calls: list[HttpOptions],
+) -> None:
+    monkeypatch.setattr(FastMCP, "run", lambda *a, **k: pytest.fail("the server must not start"))
+    monkeypatch.setenv("SBJ_ASK_EVERY_TIME", raw)
+    for argv in (["serve"], ["serve", "--transport", "http", "--no-auth"]):
+        with pytest.raises(SystemExit) as exc:
+            cli.main(argv)
+        assert exc.value.code == 2
+        assert f"SBJ_ASK_EVERY_TIME must be true or false, got {raw!r}" in capsys.readouterr().err
+    assert http_calls == []
+    assert joplin.requests == []
+
+
+@pytest.mark.parametrize("raw", ["", "true", "false"])
+def test_serve_starts_with_a_readable_or_empty_ask_every_time(
+    raw: str, monkeypatch: pytest.MonkeyPatch, http_calls: list[HttpOptions]
+) -> None:
+    started: list[str] = []
+    monkeypatch.setattr(FastMCP, "run", lambda *a, **k: started.append("stdio"))
+    monkeypatch.setenv("SBJ_ASK_EVERY_TIME", raw)
+    cli.main(["serve"])
+    cli.main(["serve", "--transport", "http", "--no-auth"])
+    assert started == ["stdio"]
+    assert len(http_calls) == 1
+
+
+ASK_OFF_LOG = "SBJ_ASK_EVERY_TIME is off"
+
+
+def test_http_mode_says_at_start_up_that_ask_every_time_is_off(
+    joplin: FakeJoplin,
+    monkeypatch: pytest.MonkeyPatch,
+    http_calls: list[HttpOptions],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO, logger="second_brain_joplin")
+    monkeypatch.setenv("SBJ_WRITE_NOTEBOOKS", "Work")
+    monkeypatch.setenv("SBJ_ASK_EVERY_TIME", "false")
+    cli.main(["serve", "--transport", "http", "--no-auth"])
+    assert len(http_calls) == 1
+    assert ASK_OFF_LOG in caplog.text
+
+
+@pytest.mark.parametrize(
+    "env",
+    [
+        {"SBJ_WRITE_NOTEBOOKS": "Work"},  # on by default
+        {"SBJ_WRITE_NOTEBOOKS": "Work", "SBJ_ASK_EVERY_TIME": "true"},
+        {"SBJ_ASK_EVERY_TIME": "false"},  # nothing to ask about: the server is read-only
+    ],
+)
+def test_http_mode_says_nothing_about_ask_every_time_otherwise(
+    env: dict[str, str],
+    joplin: FakeJoplin,
+    monkeypatch: pytest.MonkeyPatch,
+    http_calls: list[HttpOptions],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO, logger="second_brain_joplin")
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+    cli.main(["serve", "--transport", "http", "--no-auth"])
+    assert len(http_calls) == 1
+    assert ASK_OFF_LOG not in caplog.text
+
+
+def test_notebooks_command_says_when_ask_every_time_is_off(
+    joplin: FakeJoplin, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    ids = _ids_by_title(joplin)
+    monkeypatch.setenv("SBJ_WRITE_NOTEBOOKS", "Projects")
+    monkeypatch.setenv("SBJ_ASK_EVERY_TIME", "off")
+    cli.main(["notebooks"])
+    assert capsys.readouterr().out.splitlines() == [
+        "No notebook filter is set: all 3 notebooks are visible.",
+        "Note creation: allowed in the 1 marked writable.",
+        "Asking before each note: left to the client (SBJ_ASK_EVERY_TIME is off).",
+        f"visible   {ids['Journal']}  Journal (3)",
+        f"visible   {ids['Work']}  Work (2)",
+        f"writable  {ids['Projects']}    Projects (1)",
+    ]
+
+
+def test_notebooks_command_refuses_an_unreadable_ask_every_time_before_asking_joplin(
+    joplin: FakeJoplin, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("SBJ_ASK_EVERY_TIME", "flase")
+    with pytest.raises(SystemExit) as exc:
+        cli.main(["notebooks"])
+    assert exc.value.code == 2
+    assert "SBJ_ASK_EVERY_TIME must be true or false, got 'flase'" in capsys.readouterr().err
+    assert joplin.requests == []
+
+
+@pytest.mark.parametrize("transport_args", [[], ["--transport", "http", "--no-auth"]])
+def test_serve_refuses_an_unreadable_ask_every_time_from_an_env_file(
+    transport_args: list[str],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    http_calls: list[HttpOptions],
+) -> None:
+    """The check runs after the file is read, so a typo in the file is caught too."""
+    monkeypatch.setattr(FastMCP, "run", lambda *a, **k: pytest.fail("the server must not start"))
+    env_file = tmp_path / "serve.env"
+    env_file.write_text("SBJ_ASK_EVERY_TIME=flase\n")
+    with pytest.raises(SystemExit) as exc:
+        cli.main(["serve", "--env-file", str(env_file), *transport_args])
+    assert exc.value.code == 2
+    assert "SBJ_ASK_EVERY_TIME must be true or false, got 'flase'" in capsys.readouterr().err
+    assert http_calls == []
+
+
+@pytest.mark.parametrize(
+    ("exported", "in_file", "asks"),
+    [
+        ("true", "false", True),  # a set variable wins over the file
+        ("false", "true", False),
+        ("", "false", False),  # set to nothing is not set: the file decides
+        ("", "true", True),
+    ],
+)
+def test_ask_every_time_follows_the_usual_order_of_environment_then_env_file(
+    exported: str,
+    in_file: str,
+    asks: bool,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An empty variable doesn't force the default over a file that says false: only
+    a plain yes does. Stated in docs/configuration.md."""
+    env_file = tmp_path / "serve.env"
+    env_file.write_text(f"SBJ_ASK_EVERY_TIME={in_file}\n")
+    monkeypatch.setenv("SBJ_ASK_EVERY_TIME", exported)
+    cli.load_env_file(env_file)
+    assert Settings.from_env().ask_every_time is asks

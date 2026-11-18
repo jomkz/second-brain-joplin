@@ -2,6 +2,7 @@
 
 import argparse
 import asyncio
+import logging
 import os
 import tomllib
 from collections.abc import Mapping
@@ -20,6 +21,8 @@ from .remote import ServeConfigError, http_options, run_http, validate
 from .scope import NotebookScope, WriteTargets, check_at_startup, scope_of, write_targets_of
 from .semantic.types import SyncStats
 from .server import create_server
+
+logger = logging.getLogger("second_brain_joplin.cli")
 
 TRANSPORTS = ("stdio", "http")
 # This project's name in pyproject.toml: what marks a directory as a checkout of it.
@@ -84,7 +87,9 @@ def build_parser() -> argparse.ArgumentParser:
             "Print every notebook with its id and note count, marked hidden, visible or "
             "writable under SBJ_NOTEBOOKS, SBJ_EXCLUDE_NOTEBOOKS and SBJ_WRITE_NOTEBOOKS. "
             "Use it to find the ids for those variables, and to check them before a "
-            "client sees through them. Needs Joplin Desktop running."
+            "client sees through them. With note creation on, it also says when "
+            "SBJ_ASK_EVERY_TIME is off. "
+            "Needs Joplin Desktop running."
         ),
     )
     notebooks.add_argument(
@@ -180,8 +185,23 @@ async def fetch_notebooks(settings: Settings) -> tuple[list[JsonDict], list[Json
         await client.aclose()
 
 
+def refuse_unreadable_switches(settings: Settings) -> None:
+    """Refuse a yes-or-no setting whose value is neither.
+
+    The setting itself stays on (config.py), so a typo exposes nothing. Refusing
+    is so the operator finds out that the value didn't do what they meant.
+    """
+    if settings.unreadable_switches:
+        problems = "; ".join(
+            f"{name} must be true or false, got {os.environ.get(name, '')!r}"
+            for name in settings.unreadable_switches
+        )
+        raise ServeConfigError(problems)
+
+
 def notebooks(_args: argparse.Namespace) -> None:
     settings = Settings.from_env()
+    refuse_unreadable_switches(settings)
     folders, notes_index = asyncio.run(fetch_notebooks(settings))
     try:
         scope = scope_of(settings, folders)
@@ -196,6 +216,8 @@ def notebooks(_args: argparse.Namespace) -> None:
         print(f"Notebook filter: {len(scope.visible)} of {len(folders)} notebooks visible.")
     if settings.writes_enabled:
         print(f"Note creation: allowed in the {len(targets.titles)} marked writable.")
+        if not settings.ask_every_time:
+            print("Asking before each note: left to the client (SBJ_ASK_EVERY_TIME is off).")
     else:
         print("Note creation: off (SBJ_WRITE_NOTEBOOKS is not set).")
     print("\n".join(notebook_lines(folders, notes_index, scope, targets)))
@@ -263,6 +285,7 @@ def serve(args: argparse.Namespace) -> None:
     transport = args.transport or os.environ.get("SBJ_TRANSPORT") or "stdio"
     if transport not in TRANSPORTS:
         raise ServeConfigError(f"SBJ_TRANSPORT must be one of {', '.join(TRANSPORTS)}")
+    refuse_unreadable_switches(Settings.from_env())
     if transport == "stdio":
         http_only = [
             flag
@@ -293,7 +316,15 @@ def serve(args: argparse.Namespace) -> None:
     auth_settings = AuthSettings.from_env()
     validate(options, auth_configured=auth_settings is not None)
     configure_logging()
-    asyncio.run(check_at_startup(Settings.from_env()))
+    settings = Settings.from_env()
+    asyncio.run(check_at_startup(settings))
+    if settings.writes_enabled and not settings.ask_every_time:
+        # Said out loud, like a missing notebook filter: the operator turned a
+        # protection off, and the log should show that it was on purpose.
+        logger.info(
+            "note creation: SBJ_ASK_EVERY_TIME is off, so whether you are asked before "
+            "each note is up to the client"
+        )
     auth = None
     if auth_settings is not None:
         assert options.public_url is not None  # validate() guarantees it with sign-in

@@ -21,6 +21,12 @@ CREATES_NOTE = ToolAnnotations(
 )
 
 # Tool metadata Claude Code honours: prompt the user on every call of this tool,
-# with no "don't ask again", whatever allow rules or permission mode are in force
-# (Claude Code docs, "Require approval for a specific tool"). Other clients ignore it.
+# with no "don't ask again", whatever allow rules are in force and in every
+# permission mode that can prompt (Claude Code docs, "Require approval for a
+# specific tool"). Where Claude Code can't put the prompt to a person it refuses
+# the call instead. That is deliberate there, and it also means a client that
+# shows the prompt with no way to approve it (Claude Duet, November 2026) can't
+# call the tool at all. So the operator can leave the metadata off with
+# SBJ_ASK_EVERY_TIME=false (config.py); the check on each note is then whatever
+# the client does for any other tool that writes.
 ASK_EVERY_TIME = {"anthropic/requiresUserInteraction": True}

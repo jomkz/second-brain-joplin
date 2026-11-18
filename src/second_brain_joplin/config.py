@@ -30,6 +30,27 @@ def _env_bool(name: str, default: bool) -> bool:
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
+ASK_EVERY_TIME_VAR = "SBJ_ASK_EVERY_TIME"
+_YES = frozenset({"1", "true", "yes", "on"})
+_NO = frozenset({"0", "false", "no", "off"})
+
+
+def _env_switch(name: str) -> bool | None:
+    """A protection that is on unless it is plainly switched off: True, False or None.
+
+    Unset, or set to nothing, is on. Only a plain no is off. Anything else (a
+    typo) is None: the caller keeps the protection on, and ``serve`` refuses to
+    start, so a misspelt value can pass for neither answer. This is stricter than
+    ``_env_bool`` on purpose, where every value that isn't a yes means false.
+    """
+    word = os.environ.get(name, "").strip().lower()
+    if not word or word in _YES:
+        return True
+    if word in _NO:
+        return False
+    return None
+
+
 def _env_list(name: str) -> tuple[str, ...]:
     """A comma-separated variable as its entries, trimmed, without empty ones."""
     return tuple(entry.strip() for entry in os.environ.get(name, "").split(",") if entry.strip())
@@ -63,6 +84,12 @@ class Settings(BaseModel):
     # Where a note may be created (scope.py); empty means the server is read-only
     # and registers no write tool at all.
     write_notebooks: tuple[str, ...] = ()
+    # Whether the write tool is marked so that Claude Code asks on every call
+    # (tools/annotations.py). On unless SBJ_ASK_EVERY_TIME plainly says no.
+    ask_every_time: bool = True
+    # Switches set to something that is neither a yes nor a no. They stay on, and
+    # `serve` refuses to start until the value is fixed.
+    unreadable_switches: tuple[str, ...] = ()
 
     embedding_backend: str = DEFAULT_EMBEDDING_BACKEND
     embedding_model: str = ""
@@ -92,6 +119,7 @@ class Settings(BaseModel):
     @classmethod
     def from_env(cls) -> "Settings":
         """Build settings from ``JOPLIN_*`` / ``SBJ_*`` environment variables."""
+        ask_every_time = _env_switch(ASK_EVERY_TIME_VAR)
         return cls(
             joplin_base_url=os.environ.get("JOPLIN_BASE_URL", DEFAULT_BASE_URL),
             joplin_api_token=os.environ.get("JOPLIN_API_TOKEN", ""),
@@ -99,6 +127,8 @@ class Settings(BaseModel):
             exclude_notebooks=_env_list("SBJ_EXCLUDE_NOTEBOOKS"),
             blank_filter_vars=_set_but_blank("SBJ_NOTEBOOKS", "SBJ_EXCLUDE_NOTEBOOKS"),
             write_notebooks=_env_list("SBJ_WRITE_NOTEBOOKS"),
+            ask_every_time=ask_every_time is not False,
+            unreadable_switches=(ASK_EVERY_TIME_VAR,) if ask_every_time is None else (),
             embedding_backend=os.environ.get("SBJ_EMBEDDING_BACKEND", DEFAULT_EMBEDDING_BACKEND),
             embedding_model=os.environ.get("SBJ_EMBEDDING_MODEL", ""),
             vector_store=os.environ.get("SBJ_VECTOR_STORE", DEFAULT_VECTOR_STORE),

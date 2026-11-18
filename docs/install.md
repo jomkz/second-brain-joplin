@@ -146,9 +146,11 @@ may receive new notes:
 ```
 
 It can then add a note there and do nothing else. Whether you are asked before
-each note is up to your client: Claude Code always asks, and elsewhere keep the
-tool set to ask every time
-([Who confirms each note](remote-access.md#who-confirms-each-note)).
+each note is up to your client. With the default settings, Claude Code asks
+every time, and refuses the call where it can't ask. Other clients differ, and
+a setting named "Needs approval" doesn't always mean you are asked, so read
+[Who confirms each note](remote-access.md#who-confirms-each-note) before you
+rely on it.
 
 **Search by meaning.** Semantic search is an optional install. Change the
 command's arguments to:

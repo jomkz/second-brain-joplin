@@ -284,9 +284,10 @@ Returns:
 }
 ```
 
-- **You approve each note in your client.** The call carries the notebook by
-  name, the title and the text, so the approval prompt shows what will be
-  written. See [Who confirms each note](remote-access.md#who-confirms-each-note).
+- **You approve each note in your client, when the client asks.** The call
+  carries the notebook by name, the title and the text, so the approval prompt
+  shows what will be written. Which clients ask, and when:
+  [Who confirms each note](remote-access.md#who-confirms-each-note).
 - **Only listed notebooks.** Any other notebook gets one answer, whether it is
   hidden, missing or just not listed:
   `A note can't be created in that notebook.`, followed by the notebooks that
@@ -359,5 +360,9 @@ you first:
 | `joplin_create_note` | `false` | `false` | `false` | `false` |
 
 `joplin_create_note` also carries `"anthropic/requiresUserInteraction": true`
-in its metadata. Claude Code reads that as: ask on every call, with no "don't
-ask again". Other clients ignore it.
+in its metadata, unless the server runs with
+[`SBJ_ASK_EVERY_TIME=false`](configuration.md#notebooks). Claude Code reads that
+as: ask on every call, with no "don't ask again", and refuse the call where
+nobody can be asked. The two other Claude clients tested act on it too, and not
+in the same way: [Who confirms each note](remote-access.md#who-confirms-each-note)
+says what each one did.

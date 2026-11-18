@@ -80,6 +80,7 @@ def create_server(
     remote: bool = False,
     sync_interval_minutes: int = 0,
     writes: bool | None = None,
+    ask_every_time: bool | None = None,
 ) -> FastMCP:
     """Build the MCP server with its tools and the ``/healthz`` route.
 
@@ -90,7 +91,9 @@ def create_server(
 
     ``writes`` says whether the write tool is registered; None reads it from the
     environment as it is now (``SBJ_WRITE_NOTEBOOKS`` set), so build the server
-    after any env file is loaded.
+    after any env file is loaded. ``ask_every_time`` says whether that tool is
+    marked to be asked about on every call; None reads ``SBJ_ASK_EVERY_TIME`` the
+    same way, which is on unless it plainly says no.
     """
     if auth is not None and not allowed_ids:
         raise ValueError("a server with sign-in needs its allowed GitHub ids")
@@ -108,9 +111,12 @@ def create_server(
     server = FastMCP(
         "second-brain-joplin", lifespan=server_lifespan, auth=auth, middleware=middleware
     )
+    settings = Settings.from_env()
     if writes is None:
-        writes = Settings.from_env().writes_enabled
-    register_tools(server, writes=writes)
+        writes = settings.writes_enabled
+    if ask_every_time is None:
+        ask_every_time = settings.ask_every_time
+    register_tools(server, writes=writes, ask_every_time=ask_every_time)
     server.custom_route("/healthz", methods=["GET"])(healthz)
     return server
 
