@@ -41,6 +41,11 @@ it made. The same fix: adding `--python 3.13` makes a new copy.
 **An old version keeps starting after a new release.** `uvx` keeps the copy it
 first installed ([Updating](install.md#updating)).
 
+**"SBJ_ASK_EVERY_TIME must be true or false".** The server won't start with a
+value it can't read for that setting, because a typo there would otherwise pass
+for an answer. Use `true` or `false`, or remove the variable to keep the
+default, which is true.
+
 ## A tool answers with an error
 
 **"Joplin is unreachable at … — is Joplin Desktop running with the Web Clipper
@@ -148,10 +153,22 @@ in `SBJ_WRITE_NOTEBOOKS`, or the filter hides it. The answer names the notebooks
 that can take notes. A title has to match exactly; when two writable notebooks
 share a title, name the one you mean by its id.
 
+**The approval prompt for `joplin_create_note` has no Allow button.** Seen in
+Claude Duet in November 2026: the prompt shows only Stop. The tool is marked so
+that a person has to approve every call, and that client has no way to take the
+answer. Create the note from a chat on claude.ai or from Claude Code instead.
+To let such a client create notes, the server's operator can set
+`SBJ_ASK_EVERY_TIME=false`, which also means notes can be created without
+asking ([A client whose prompt can't be answered](remote-access.md#a-client-whose-prompt-cant-be-answered)).
+
 **The assistant created a note without asking you.** The approval prompt
-belongs to your client. In claude.ai, set `joplin_create_note` back to **Needs
-approval** in the connector's tool settings; **Allow always** turns the prompt
-off ([Who confirms each note](remote-access.md#who-confirms-each-note)).
+belongs to your client. Check three things. If the server runs with
+`SBJ_ASK_EVERY_TIME=false`, nothing tells the client that this tool has to be
+asked about: remove that setting to get the prompt back. In Claude's apps,
+**Always allow** on the tool turns the prompt off, and in Auto mode a tool on
+**Needs approval** can run without asking: choose **Always ask** on the
+connector's Permissions tab if your account has it, or use Manual mode
+([Who confirms each note](remote-access.md#who-confirms-each-note)).
 
 **"The note may or may not have been created".** Joplin took the request and
 didn't answer. Look in Joplin, or ask again: the same note asked for within ten

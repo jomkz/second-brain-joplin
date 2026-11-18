@@ -17,6 +17,7 @@ SBJ_VARS = [
     "SBJ_NOTEBOOKS",
     "SBJ_EXCLUDE_NOTEBOOKS",
     "SBJ_WRITE_NOTEBOOKS",
+    "SBJ_ASK_EVERY_TIME",
     "SBJ_EMBEDDING_BACKEND",
     "SBJ_EMBEDDING_MODEL",
     "SBJ_VECTOR_STORE",
@@ -39,6 +40,8 @@ def test_defaults() -> None:
     assert settings.notebook_filter_set is False
     assert settings.write_notebooks == ()
     assert settings.writes_enabled is False
+    assert settings.ask_every_time is True
+    assert settings.unreadable_switches == ()
 
 
 def test_trailing_slash_is_stripped() -> None:
@@ -161,3 +164,55 @@ def test_an_empty_write_list_leaves_the_server_read_only(
 ) -> None:
     monkeypatch.setenv("SBJ_WRITE_NOTEBOOKS", raw)
     assert Settings.from_env().writes_enabled is False
+
+
+# -- SBJ_ASK_EVERY_TIME: on unless it plainly says no ----------------------------
+
+
+def test_ask_every_time_is_on_when_unset(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("SBJ_ASK_EVERY_TIME", raising=False)
+    settings = Settings.from_env()
+    assert settings.ask_every_time is True
+    assert settings.unreadable_switches == ()
+
+
+@pytest.mark.parametrize("raw", ["", "   ", "1", "true", "TRUE", "yes", " On "])
+def test_ask_every_time_stays_on_for_nothing_or_a_yes(
+    monkeypatch: pytest.MonkeyPatch, raw: str
+) -> None:
+    """Set to nothing is unset, not off: an empty variable must not drop a protection."""
+    monkeypatch.setenv("SBJ_ASK_EVERY_TIME", raw)
+    settings = Settings.from_env()
+    assert settings.ask_every_time is True
+    assert settings.unreadable_switches == ()
+
+
+@pytest.mark.parametrize("raw", ["0", "false", "False", "no", " OFF "])
+def test_only_a_plain_no_turns_ask_every_time_off(
+    monkeypatch: pytest.MonkeyPatch, raw: str
+) -> None:
+    monkeypatch.setenv("SBJ_ASK_EVERY_TIME", raw)
+    settings = Settings.from_env()
+    assert settings.ask_every_time is False
+    assert settings.unreadable_switches == ()
+
+
+@pytest.mark.parametrize("raw", ["flase", "2", "-1", "nope", "disabled", "false false", "f"])
+def test_a_value_that_is_neither_keeps_asking_and_is_reported(
+    monkeypatch: pytest.MonkeyPatch, raw: str
+) -> None:
+    """A typo is never read as off. It is reported, so `serve` can refuse to start."""
+    monkeypatch.setenv("SBJ_ASK_EVERY_TIME", raw)
+    settings = Settings.from_env()
+    assert settings.ask_every_time is True
+    assert settings.unreadable_switches == ("SBJ_ASK_EVERY_TIME",)
+
+
+def test_auto_sync_parsing_is_unchanged_by_the_stricter_switch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """SBJ_SEMANTIC_AUTO_SYNC keeps its 1.0 reading: empty, or anything else, is false."""
+    monkeypatch.setenv("SBJ_SEMANTIC_AUTO_SYNC", "flase")
+    settings = Settings.from_env()
+    assert settings.semantic_auto_sync is False
+    assert settings.unreadable_switches == ()

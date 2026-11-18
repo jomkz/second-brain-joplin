@@ -39,7 +39,7 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
-from collections.abc import Sequence
+from collections.abc import AsyncIterator, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -55,6 +55,7 @@ READ_TOOLS = {
     "joplin_reindex",
 }
 WRITE_TOOL = "joplin_create_note"
+ASK_EVERY_TIME = "anthropic/requiresUserInteraction"
 # A first run installs the package and its dependencies before the server speaks.
 START_TIMEOUT = 300
 # What the stdio servers write to stderr; shown only when a check fails.
@@ -123,6 +124,12 @@ async def tool_names(client: Client[Any]) -> set[str]:
     return {tool.name for tool in await client.list_tools()}
 
 
+async def asks_every_time(client: Client[Any]) -> bool:
+    """Whether the write tool carries the mark that makes Claude's clients ask on every call."""
+    tool = next(tool for tool in await client.list_tools() if tool.name == WRITE_TOOL)
+    return (tool.meta or {}).get(ASK_EVERY_TIME) is True
+
+
 async def check_stdio(server: Server, joplin_down: dict[str, str]) -> None:
     async with server.stdio(joplin_down) as client:
         info = client.server_info
@@ -149,6 +156,17 @@ async def check_stdio(server: Server, joplin_down: dict[str, str]) -> None:
             names == READ_TOOLS | {WRITE_TOOL},
             "stdio: SBJ_WRITE_NOTEBOOKS adds joplin_create_note and nothing else",
         )
+        check(
+            await asks_every_time(client),
+            "stdio: joplin_create_note is marked to be asked about on every call",
+        )
+
+    unmarked = {**joplin_down, "SBJ_WRITE_NOTEBOOKS": "Inbox", "SBJ_ASK_EVERY_TIME": "false"}
+    async with server.stdio(unmarked) as client:
+        check(
+            not await asks_every_time(client),
+            "stdio: SBJ_ASK_EVERY_TIME=false leaves that mark off",
+        )
 
 
 def stop(process: subprocess.Popen[bytes]) -> None:
@@ -172,13 +190,20 @@ def get_json(url: str) -> tuple[int, Any]:
         return error.code, json.load(error)
 
 
-async def check_http(server: Server, joplin_down: dict[str, str]) -> None:
+@contextlib.asynccontextmanager
+async def serving_http(
+    server: Server, env: dict[str, str]
+) -> AsyncIterator[tuple[str, tuple[int, Any] | None]]:
+    """`serve --transport http --no-auth` on a free port: its address and first /healthz answer.
+
+    The answer is None when the server never came up; its output is printed then.
+    """
     port = free_port()
     group: dict[str, Any] = {} if sys.platform == "win32" else {"start_new_session": True}
     with tempfile.TemporaryFile() as log:
         process = subprocess.Popen(
             server.command("serve", "--transport", "http", "--no-auth", "--port", str(port)),
-            env=joplin_down,
+            env=env,
             stdout=log,
             stderr=subprocess.STDOUT,
             **group,
@@ -191,19 +216,36 @@ async def check_http(server: Server, joplin_down: dict[str, str]) -> None:
                     health = get_json(f"http://127.0.0.1:{port}/healthz")
                 except OSError:
                     await asyncio.sleep(0.5)
-            if not check(health is not None, "http: the server starts with --no-auth on loopback"):
+            if health is None:
                 log.seek(0)
                 print(log.read().decode(errors="replace")[-2000:])
-                return
-            check(
-                health == (503, {"server": True, "joplin": False}),
-                "http: /healthz reports Joplin down with 503",
-                str(health),
-            )
-            async with Client(f"http://127.0.0.1:{port}/mcp", init_timeout=30) as client:
-                check(await tool_names(client) == READ_TOOLS, "http: MCP lists the same six tools")
+            yield f"http://127.0.0.1:{port}", health
         finally:
             stop(process)
+
+
+async def check_http(server: Server, joplin_down: dict[str, str]) -> None:
+    async with serving_http(server, joplin_down) as (address, health):
+        if not check(health is not None, "http: the server starts with --no-auth on loopback"):
+            return
+        check(
+            health == (503, {"server": True, "joplin": False}),
+            "http: /healthz reports Joplin down with 503",
+            str(health),
+        )
+        async with Client(f"{address}/mcp", init_timeout=30) as client:
+            check(await tool_names(client) == READ_TOOLS, "http: MCP lists the same six tools")
+
+    # HTTP is how a Claude connector reaches the server, so the mark is checked here too.
+    writes = {**joplin_down, "SBJ_WRITE_NOTEBOOKS": "Inbox"}
+    async with serving_http(server, writes) as (address, health):
+        if not check(health is not None, "http: the server starts with note creation on"):
+            return
+        async with Client(f"{address}/mcp", init_timeout=30) as client:
+            check(
+                await asks_every_time(client),
+                "http: joplin_create_note is marked to be asked about on every call",
+            )
 
 
 async def check_semantic(server: Server, joplin_down: dict[str, str]) -> None:

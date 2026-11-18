@@ -87,7 +87,9 @@ clients can tell what each one does.
 `joplin_create_note` exists only once you set `SBJ_WRITE_NOTEBOOKS` to the
 notebooks that may receive notes (ids or titles, or `*` for every visible one).
 Your client's approval prompt is the check on each note, and the call carries the
-note in readable form so the prompt shows what will be written. See
+note in readable form so the prompt shows what will be written. Clients differ
+in when they ask: see
+[Who confirms each note](docs/remote-access.md#who-confirms-each-note) and
 [Creating notes](docs/remote-access.md#creating-notes).
 
 To limit which notebooks these tools can see, set `SBJ_NOTEBOOKS` (only these) or
@@ -180,7 +182,7 @@ The [PARA method](https://fortelabs.com/blog/para/) works well with Joplin. See 
 
 ## Security & privacy
 
-By default (stdio) this server keeps your notes local: it talks only to Joplin's Web Clipper REST API on `localhost` and runs on your own machine. HTTP mode, for a Claude custom connector, deliberately sends what Claude reads to Anthropic, behind GitHub sign-in limited to your account ([remote access](docs/remote-access.md)). Anything an MCP client can read, the connected AI can read — so apply least privilege and don't expose notebooks with credentials or other sensitive data; a notebook filter (`SBJ_NOTEBOOKS` / `SBJ_EXCLUDE_NOTEBOOKS`) keeps chosen notebooks out of every tool. The server is read-only until you list the notebooks that may receive notes; it can then add a new note there and nothing else, and your client's approval prompt is the check on each one.
+By default (stdio) this server keeps your notes local: it talks only to Joplin's Web Clipper REST API on `localhost` and runs on your own machine. HTTP mode, for a Claude custom connector, deliberately sends what Claude reads to Anthropic, behind GitHub sign-in limited to your account ([remote access](docs/remote-access.md)). Anything an MCP client can read, the connected AI can read — so apply least privilege and don't expose notebooks with credentials or other sensitive data; a notebook filter (`SBJ_NOTEBOOKS` / `SBJ_EXCLUDE_NOTEBOOKS`) keeps chosen notebooks out of every tool. The server is read-only until you list the notebooks that may receive notes; it can then add a new note there and nothing else, and your client's approval prompt, where the client asks, is the check on each one.
 
 Two caveats apply once you enable semantic search: it writes a **local index** (under your XDG data dir by default) that stores note text excerpts and titles alongside the embeddings, and it downloads the embedding model **once over the network** on the first reindex. Your note *content* is embedded locally and never leaves your machine. See [SECURITY.md](SECURITY.md) for details and how to report a vulnerability.
 

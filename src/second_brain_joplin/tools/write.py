@@ -10,6 +10,8 @@ which is why the call carries the whole note in readable form (the notebook by
 name, the title, the text): what the person approves is what gets written. This
 server can't put its own question to the person on every client, so it doesn't
 pretend to; it limits where a note can land and leaves a record of each one.
+Whether a client asks at all is the client's business: the tool is marked to be
+asked about on every call (annotations.py) unless the operator turns that off.
 
 Requests get repeated (a client that timed out, a model trying once more), so the
 tool remembers for a few minutes which note it sent (recent.py): the same note
@@ -88,10 +90,15 @@ def clean_title(title: str) -> str:
     return cleaned
 
 
-def register(mcp: FastMCP) -> None:
-    """Register the write tool on the given FastMCP server."""
+def register(mcp: FastMCP, *, ask_every_time: bool = True) -> None:
+    """Register the write tool on the given FastMCP server.
 
-    @mcp.tool(annotations=CREATES_NOTE, meta=ASK_EVERY_TIME)
+    ``ask_every_time`` marks it so that Claude Code prompts on every call. False
+    (``SBJ_ASK_EVERY_TIME=false``) leaves the mark off, for a client whose prompt
+    for a marked tool can't be answered; see annotations.py.
+    """
+
+    @mcp.tool(annotations=CREATES_NOTE, meta=ASK_EVERY_TIME if ask_every_time else None)
     async def joplin_create_note(
         ctx: Context,
         title: Annotated[

@@ -269,22 +269,57 @@ that can receive notes `writable`.
 
 ### Who confirms each note
 
-You do, in your client. The server can't put its own question to you on every
-client (claude.ai's connector documentation doesn't list that part of MCP as
-supported), so the check on each note is the client's approval prompt for the
-call. That is why the call
+You do, in your client, when the client asks. The server can't put its own
+question to you on every client (claude.ai's connector documentation doesn't
+list that part of MCP as supported), so the check on each note is the client's
+approval prompt for the call. That is why the call
 carries the whole note in readable form: the notebook by name, the title, the
 text. What you approve is what gets written.
 
-- **claude.ai and the Claude apps:** keep `joplin_create_note` on "Needs
-  approval" in the connector's tool settings. Choosing "Allow always" turns the
-  per-note check off: Claude can then add notes to the listed notebooks without
-  asking you.
-- **Claude Code:** the tool carries a flag that makes Claude Code ask on every
-  call, with no "don't ask again", whatever allow rules or permission mode are in
-  force.
-- **Other clients:** find out how yours treats a tool that isn't read-only
-  before you turn this on.
+Whether a client asks is up to the client. The server does what it can to make
+Claude's clients ask: it marks `joplin_create_note` with
+`"anthropic/requiresUserInteraction": true`, which Claude Code documents as the
+way for a tool to require approval on every call. What each client did with
+that mark when tested in November 2026:
+
+| Client | With the mark, which is the default |
+|---|---|
+| Claude Code | Asks on every call, with no "don't ask again", whatever allow rules are in force. Where it can't put the prompt to a person (`dontAsk` mode, a run with `--permission-prompt-tool`) it refuses the call |
+| A chat on claude.ai | Asked before each note, in Manual and in Auto mode, with the tool on "Needs approval". Not tested with "Always allow" |
+| Claude Duet | Shows a prompt with no way to approve it, so no note can be created ([below](#a-client-whose-prompt-cant-be-answered)) |
+| Any other client | Not known. Find out how yours treats a tool that isn't read-only before you turn note creation on |
+
+**"Needs approval" is not that check.** Claude's apps give each connector tool
+a permission, under **Customize → Connectors**, on the connector's
+**Permissions** tab. "Needs approval" makes Claude ask in Manual mode. Of Auto
+mode, which Anthropic's help describes as rolling out as the default on most
+plans, the same page says that "tools set to 'Needs approval' can run without
+asking you"
+([Choose how Claude checks with you](https://support.claude.com/en/articles/13345190)).
+The permission that asks before every use in every mode is "Always ask", where
+your account has it. "Always allow" means Claude never asks.
+
+#### A client whose prompt can't be answered
+
+Set `SBJ_ASK_EVERY_TIME=false` and the server leaves the mark off. It is there
+for a client such as Claude Duet, which can't create a note while the tool
+carries the mark. Know what you give up:
+
+- **It applies to every client of that server,** not only the one you did it
+  for.
+- **Without the mark, a client treats `joplin_create_note` like any other tool
+  that writes.** Claude Code follows its ordinary permission rules, so an allow
+  rule or "don't ask again" stops it asking. Claude's apps in Auto mode can
+  create a note without asking you, unless the tool is set to "Always ask".
+- **What the server enforces stays as it is** ([below](#what-the-server-enforces)):
+  the listed notebooks only, the size limits, a record of every note, and no
+  second copy from a repeat. A note you didn't ask for can land in a notebook
+  you listed. Nothing can be changed, moved or deleted.
+
+Only `0`, `false`, `no` or `off` turns it off. A value that is neither a yes nor
+a no stops the server from starting, so a typo can't pass for either. With note
+creation on, HTTP mode says in its log at start-up that the setting is off, and
+`second-brain-joplin notebooks` says so too.
 
 ### What the server enforces
 
@@ -316,7 +351,8 @@ later, `joplin_create_note` refuses and the read tools carry on.
 
 Notes hold text from anywhere: a clipped web page, a pasted email. Text written
 to steer an AI could ask it to write more notes. The approval prompt is where you
-catch that, which is the reason to keep it on.
+catch that, which is the reason to use a client that asks, and to leave
+`SBJ_ASK_EVERY_TIME` alone unless you need it off.
 
 ## Limits and logs
 
@@ -445,7 +481,9 @@ and build the index once with
    `https://joplin.example.com/mcp`.
 3. Claude finds the sign-in on its own. Sign in with GitHub, then approve the
    consent page.
-4. Optional: in the connector's tool settings, set any tool to always ask.
+4. Optional: on the connector's **Permissions** tab, choose for each tool how
+   Claude checks with you ([Who confirms each note](#who-confirms-each-note)
+   says what the choices do for `joplin_create_note`).
 
 Connectors you add on claude.ai also work in Claude Desktop, the mobile apps and
 Cowork. Free accounts can add one custom connector.
@@ -464,6 +502,7 @@ Cowork. Free accounts can add one custom connector.
 | `SBJ_NOTEBOOKS` | none | Only these notebooks (ids or titles, comma-separated) are visible |
 | `SBJ_EXCLUDE_NOTEBOOKS` | none | These notebooks are hidden |
 | `SBJ_WRITE_NOTEBOOKS` | none (read-only) | Notes may be created in these notebooks; `*` = every visible one |
+| `SBJ_ASK_EVERY_TIME` | `true` | `false` leaves off the mark that asks Claude's clients to check with you before each note |
 | `SBJ_RATE_LIMIT_PER_MINUTE` | `60` | Tool calls per caller; 0 = off |
 | `SBJ_SYNC_INTERVAL_MINUTES` | `15` | Background index sync; 0 = off |
 

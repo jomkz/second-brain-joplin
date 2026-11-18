@@ -6,6 +6,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **`SBJ_ASK_EVERY_TIME`** (#74): a way to let a client create notes when it
+  can't answer the every-time prompt. `joplin_create_note` is marked with
+  `anthropic/requiresUserInteraction`, which makes Claude Code ask on every
+  call. Claude Duet shows the prompt for a marked tool with no way to approve
+  it, so it could not create a note at all (#68). `SBJ_ASK_EVERY_TIME=false`
+  leaves the mark off. The default is unchanged, and so is what the server
+  enforces: the listed notebooks only, the size limits, a record of every note,
+  and no second copy from a repeat. With the mark off, whether you are asked
+  before a note is up to each client, and Claude's apps in Auto mode can create
+  one without asking, so read
+  [A client whose prompt can't be answered](docs/remote-access.md#a-client-whose-prompt-cant-be-answered)
+  first. Only `0`, `false`, `no` or `off` turns it off, and a value that is
+  neither a yes nor a no stops the server from starting. With note creation on,
+  HTTP mode says in its log at start-up that the setting is off, and
+  `second-brain-joplin notebooks` says so too.
+
 ### Changed
 
 - **Requests to Joplin ignore proxy settings** (#65). Joplin's API takes its
@@ -20,6 +38,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   on the same machine over plain `http`: a Joplin on another machine reached
   through a proxy no longer works, and for an `https` address the Joplin client
   no longer reads `SSL_CERT_FILE` or `SSL_CERT_DIR`.
+
+### Fixed
+
+- **The guides said more about approval prompts than the clients deliver**
+  (#74, found in #68). Three things were wrong. They told you to keep
+  `joplin_create_note` on "Needs approval" in claude.ai as the check on each
+  note, but in Auto mode in Claude's apps a tool on that setting can run without
+  asking. They said that clients other than
+  Claude Code ignore the tool's every-time mark, but Claude Duet acts on it and
+  then can't approve the call. And they said that Claude Code asks in every
+  permission mode, but where it can't prompt it refuses the call. `SECURITY.md`,
+  [Who confirms each note](docs/remote-access.md#who-confirms-each-note), the
+  tool reference, the installation and troubleshooting guides and the README now
+  say what each client did when tested in November 2026, and which settings do
+  make Claude ask.
 
 ## [1.0.1]
 
