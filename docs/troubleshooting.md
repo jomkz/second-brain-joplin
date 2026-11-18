@@ -247,9 +247,9 @@ list they read from a connector, with each tool's description and marks, and a
 new chat can still be given the old one. Seen in November 2026: after a restart
 that changed how `joplin_create_note` is marked, new Claude Duet chats on the
 web and in the phone app behaved as before until the list was refreshed. Under
-**Customize → Connectors**, open the connector and choose the item in its
-three-dot menu that refreshes the tool list, then start a new chat. If your
-account has no such item, disconnect and reconnect the connector.
+**Customize → Connectors**, open the connector and choose **Refresh tools
+list** in its three-dot menu (its name in November 2026), then start a new
+chat. If your account has no such item, disconnect and reconnect the connector.
 
 **"Rate limit exceeded for client: …".** Too many tool calls at once: the limit
 is `SBJ_RATE_LIMIT_PER_MINUTE` calls a minute (60 by default), and a burst may
