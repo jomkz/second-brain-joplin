@@ -6,6 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.1.0]
+
+One new setting, one change to how the server reaches Joplin, and guides that
+now say what Claude's clients do when a note is about to be created. A server
+that sets nothing new behaves as before, with one difference: its requests to
+Joplin no longer go through a proxy named in its environment.
+
 ### Added
 
 - **`SBJ_ASK_EVERY_TIME`** (#74): a way to let a client create notes when it
@@ -425,7 +432,8 @@ Initial project skeleton — the MCP server starts and all tools are stubbed.
 - Documentation: install, notebook structure (PARA), project management,
   releasing runbook, security policy, and an inspiration/reference note.
 
-[Unreleased]: https://github.com/jomkz/second-brain-joplin/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/jomkz/second-brain-joplin/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/jomkz/second-brain-joplin/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/jomkz/second-brain-joplin/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.5.0...v1.0.0
 [0.5.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.4.0...v0.5.0

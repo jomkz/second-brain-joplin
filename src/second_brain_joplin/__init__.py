@@ -2,7 +2,7 @@
 
 import os
 
-__version__ = "1.0.1"
+__version__ = "1.1.0"
 
 # FastMCP, the library underneath, has settings of its own (FASTMCP_*), and when it
 # is first imported it reads them from a `.env` in the working directory. For an
