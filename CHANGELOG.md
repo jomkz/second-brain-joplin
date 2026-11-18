@@ -6,6 +6,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Requests to Joplin ignore proxy settings** (#65). Joplin's API takes its
+  token in the address of every request. With `HTTP_PROXY` or `ALL_PROXY` set in
+  the server's environment, as on a work laptop or under a shell profile that
+  exports one, and no `NO_PROXY` covering `localhost`, every request to Joplin
+  went to that proxy instead, token included, and every tool failed, usually
+  with `Joplin returned an unexpected response (HTTP 502)`. The server now
+  reaches Joplin directly, whatever the environment or the system's proxy
+  settings say. Sign-in with GitHub in HTTP mode reaches the internet as before.
+  Two setups are affected, both outside the guides, which have always put Joplin
+  on the same machine over plain `http`: a Joplin on another machine reached
+  through a proxy no longer works, and for an `https` address the Joplin client
+  no longer reads `SSL_CERT_FILE` or `SSL_CERT_DIR`.
+
 ## [1.0.1]
 
 Two fixes to where the server takes its settings from. Each closes a way for a

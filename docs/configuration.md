@@ -71,6 +71,11 @@ the token in the address of each request, which is why Joplin should only ever
 be reached on the same machine, and why HTTP mode keeps that address out of its
 logs.
 
+Requests to Joplin always go straight to that address. Proxy settings
+(`HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, or the system's own on macOS and
+Windows) are ignored for them: a proxy would be handed the token, and couldn't
+reach the Joplin on your machine anyway.
+
 ## Notebooks
 
 These apply to every tool, over stdio and HTTP alike.

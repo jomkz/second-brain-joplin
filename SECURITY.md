@@ -13,7 +13,11 @@ public issue. We aim to acknowledge reports within a few days.
 - **Joplin stays local.** The server talks to Joplin's Web Clipper REST API on
   `localhost` (default `http://localhost:41184`). The Joplin API token is read from
   the environment (`JOPLIN_API_TOKEN`), never leaves the machine, and is never
-  committed — keep it out of version control.
+  committed — keep it out of version control. Requests to Joplin go straight to
+  that address and ignore any proxy set in the environment or the system,
+  because Joplin's API takes the token in the address of each request. Before
+  1.1.0 a proxy named by `HTTP_PROXY` or `ALL_PROXY` in the server's environment
+  received those requests, unless `NO_PROXY` covered `localhost`: update.
 - **Settings come only from where you put them.** The server is configured by
   the environment it is started with and by a file you name with `--env-file`.
   It reads no settings file from the directory it is started in, which is

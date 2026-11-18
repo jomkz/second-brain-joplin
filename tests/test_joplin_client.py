@@ -1,6 +1,8 @@
 """Tests for the Joplin REST API client."""
 
+import asyncio
 import json
+from collections.abc import Callable
 
 import httpx
 import pytest
@@ -297,3 +299,64 @@ async def test_a_connection_error_says_whether_the_request_may_have_been_sent(
     with pytest.raises(JoplinConnectionError) as raised:
         await client.create_note("a" * 32, "T", "B", "b" * 32)
     assert raised.value.maybe_sent is maybe_sent
+
+
+# -- proxy settings ---------------------------------------------------------------
+
+PROXY_VARS = ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY")
+
+
+class _Listener:
+    """A local HTTP listener that records the first line of each request it gets."""
+
+    def __init__(self, status: str, body: bytes) -> None:
+        self._answer = (
+            f"HTTP/1.1 {status}\r\nContent-Length: {len(body)}\r\nConnection: close\r\n\r\n"
+        ).encode() + body
+        self.request_lines: list[str] = []
+        self._server: asyncio.Server | None = None
+
+    async def _handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        head = await reader.readuntil(b"\r\n\r\n")
+        self.request_lines.append(head.split(b"\r\n", 1)[0].decode())
+        writer.write(self._answer)
+        await writer.drain()
+        writer.close()
+
+    async def __aenter__(self) -> "_Listener":
+        self._server = await asyncio.start_server(self._handle, "127.0.0.1", 0)
+        return self
+
+    async def __aexit__(self, *_exc: object) -> None:
+        assert self._server is not None
+        self._server.close()
+        await self._server.wait_closed()
+
+    @property
+    def url(self) -> str:
+        assert self._server is not None
+        return f"http://127.0.0.1:{self._server.sockets[0].getsockname()[1]}"
+
+
+@pytest.mark.parametrize("variable", PROXY_VARS)
+@pytest.mark.parametrize("spell", [str.upper, str.lower])
+async def test_requests_to_joplin_ignore_proxy_settings(
+    monkeypatch: pytest.MonkeyPatch, variable: str, spell: Callable[[str], str]
+) -> None:
+    """Joplin's token travels in the address of every request, so a proxy named in
+    the environment must never be handed one: the request goes straight to Joplin."""
+    for name in (*PROXY_VARS, "NO_PROXY"):
+        monkeypatch.delenv(name.upper(), raising=False)
+        monkeypatch.delenv(name.lower(), raising=False)
+    async with (
+        _Listener("200 OK", b"JoplinClipperServer") as joplin,
+        _Listener("502 Bad Gateway", b"") as proxy,
+    ):
+        monkeypatch.setenv(spell(variable), proxy.url)
+        client = JoplinClient(Settings(joplin_base_url=joplin.url, joplin_api_token="tok"))
+        try:
+            assert await client.ping() is True
+        finally:
+            await client.aclose()
+        assert proxy.request_lines == []
+        assert joplin.request_lines == ["GET /ping?token=tok HTTP/1.1"]

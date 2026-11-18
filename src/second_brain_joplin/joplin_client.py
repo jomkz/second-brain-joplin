@@ -39,10 +39,17 @@ class JoplinClient:
 
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
+        # trust_env=False: Joplin is on this machine and its token travels in the
+        # address of every request. httpx would otherwise obey HTTP_PROXY/ALL_PROXY
+        # (and the system's proxy settings on macOS and Windows) and hand each
+        # request, token included, to that proxy, which couldn't reach this
+        # machine's Joplin anyway. It also stops httpx reading SSL_CERT_FILE and
+        # SSL_CERT_DIR, which only an https Joplin behind a private CA would need.
         self._client = httpx.AsyncClient(
             base_url=settings.joplin_base_url,
             params={"token": settings.joplin_api_token},
             timeout=settings.request_timeout,
+            trust_env=False,
         )
 
     @property
