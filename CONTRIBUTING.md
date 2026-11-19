@@ -112,6 +112,16 @@ See [docs/project-management.md](docs/project-management.md) for the full model
 | `component:` | `joplin-api`, `mcp`, `search`, `docs`, `ci`, `templates` | Maintainer (issues); [labeler bot](.github/workflows/labeler.yml) (PRs) |
 | meta | `epic`, `backlog`, `needs-triage`, `blocked`, `good first issue`, `help wanted` | Maintainer |
 
+## License of contributions
+
+The server is licensed under the GNU Affero General Public License, version 3
+or later ([LICENSE](LICENSE)), and the note templates under CC0 1.0
+([templates/LICENSE](templates/LICENSE)). A contribution is accepted under the
+license of the part it changes: by opening a pull request you agree to that.
+There is no contributor agreement to sign. A sign-off (`git commit -s`) says
+you have the right to submit the change under those terms
+([Developer Certificate of Origin](https://developercertificate.org/)).
+
 ## Commit style
 
 No strict convention yet — use a short imperative summary line. DCO sign-off (`git commit -s`) is encouraged but not enforced at this stage.

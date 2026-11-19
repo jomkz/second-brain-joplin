@@ -15,6 +15,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `git remote set-url origin https://github.com/second-brain-tools/second-brain-joplin`
   points a clone at the new one. The package name on PyPI and the command are
   unchanged.
+- **The license is now the GNU Affero General Public License, version 3 or
+  later** (it was MIT), from the next release on. Releases up to 1.1.0 stay
+  under MIT. Running the server, changed or not, for yourself asks nothing new
+  of you. If you pass copies on, or change it and let other people use your
+  version over a network, you must offer them the source under the same
+  license. The note templates in `templates/` are not under it: they are
+  dedicated to the public domain (CC0 1.0), so the notes you make from them
+  carry no conditions. The package's metadata now names the license as an SPDX
+  expression (`AGPL-3.0-or-later`).
 
 ### Fixed
 

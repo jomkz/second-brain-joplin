@@ -7,14 +7,14 @@ name = "second-brain-joplin"
 dynamic = ["version"]
 description = "MCP server that connects Claude Code (and other MCP clients) to your Joplin knowledge base"
 readme = "README.md"
-license = { text = "MIT" }
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 keywords = ["mcp", "joplin", "second-brain", "claude", "ai", "knowledge-base"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "Intended Audience :: End Users/Desktop",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
