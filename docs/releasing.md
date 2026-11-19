@@ -16,7 +16,7 @@ a release is safe.
 ## One-time operator setup
 
 1. **Trusted publisher on PyPI** (already configured for this repo): a GitHub
-   publisher on <https://pypi.org> with owner `jomkz`, repository
+   publisher on <https://pypi.org> with owner `second-brain-tools`, repository
    `second-brain-joplin`, workflow `release.yml`, environment `pypi`.
    To re-check or recreate it: **Manage project → Publishing** (or
    **Account → Publishing → Add a pending publisher** before the project's first

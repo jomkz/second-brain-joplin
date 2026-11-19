@@ -57,11 +57,11 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/jomkz/second-brain-joplin"
-Repository = "https://github.com/jomkz/second-brain-joplin"
-Documentation = "https://github.com/jomkz/second-brain-joplin/blob/main/docs/install.md"
-Changelog = "https://github.com/jomkz/second-brain-joplin/blob/main/CHANGELOG.md"
-Issues = "https://github.com/jomkz/second-brain-joplin/issues"
+Homepage = "https://github.com/second-brain-tools/second-brain-joplin"
+Repository = "https://github.com/second-brain-tools/second-brain-joplin"
+Documentation = "https://github.com/second-brain-tools/second-brain-joplin/blob/main/docs/install.md"
+Changelog = "https://github.com/second-brain-tools/second-brain-joplin/blob/main/CHANGELOG.md"
+Issues = "https://github.com/second-brain-tools/second-brain-joplin/issues"
 
 [project.scripts]
 second-brain-joplin = "second_brain_joplin.cli:main"

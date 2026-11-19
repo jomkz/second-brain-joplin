@@ -287,7 +287,7 @@ The logs never hold a note's title or text, a search query or a token
 
 ## Still stuck
 
-[Open an issue](https://github.com/jomkz/second-brain-joplin/issues) with the
+[Open an issue](https://github.com/second-brain-tools/second-brain-joplin/issues) with the
 output of `second-brain-joplin --version`, your operating system, the client you
 use and the error as the tool gave it. Leave your Joplin token and your notes
 out of it.

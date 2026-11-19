@@ -7,7 +7,7 @@ Thanks for your interest in second-brain-joplin.
 We use [uv](https://docs.astral.sh/uv/) as the primary toolchain:
 
 ```bash
-git clone https://github.com/jomkz/second-brain-joplin
+git clone https://github.com/second-brain-tools/second-brain-joplin
 cd second-brain-joplin
 uv sync
 uv run pre-commit install   # enable lint/format on commit

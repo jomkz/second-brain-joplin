@@ -1,6 +1,6 @@
 # second-brain-joplin
 
-[![CI](https://github.com/jomkz/second-brain-joplin/actions/workflows/ci.yml/badge.svg)](https://github.com/jomkz/second-brain-joplin/actions/workflows/ci.yml)
+[![CI](https://github.com/second-brain-tools/second-brain-joplin/actions/workflows/ci.yml/badge.svg)](https://github.com/second-brain-tools/second-brain-joplin/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/second-brain-joplin)](https://pypi.org/project/second-brain-joplin/)
 
 An MCP server that turns your [Joplin](https://joplinapp.org/) knowledge base into searchable memory for any MCP-capable AI client — Claude Code, Cursor, and others.
@@ -171,12 +171,12 @@ The [PARA method](https://fortelabs.com/blog/para/) works well with Joplin. See 
 
 | Milestone | Theme | Status |
 |---|---|---|
-| [v0.1 — Bootstrap](https://github.com/jomkz/second-brain-joplin/milestone/1) | Repo, CI, package skeleton | Done |
-| [v0.2 — Core Read Tools](https://github.com/jomkz/second-brain-joplin/milestone/2) | All read MCP tools working | Done |
-| [v0.3 — Semantic Search](https://github.com/jomkz/second-brain-joplin/milestone/3) | Embedding index, semantic search | Done |
-| [v0.4 — Remote Access](https://github.com/jomkz/second-brain-joplin/milestone/6) | Streamable HTTP, GitHub sign-in, Claude custom connector | Done |
-| [v0.5 — Write Workflow](https://github.com/jomkz/second-brain-joplin/milestone/4) | Notebook filter; note creation you allow and approve | Done |
-| [v1.0 — Publish](https://github.com/jomkz/second-brain-joplin/milestone/5) | PyPI, full docs, templates | Done |
+| [v0.1 — Bootstrap](https://github.com/second-brain-tools/second-brain-joplin/milestone/1) | Repo, CI, package skeleton | Done |
+| [v0.2 — Core Read Tools](https://github.com/second-brain-tools/second-brain-joplin/milestone/2) | All read MCP tools working | Done |
+| [v0.3 — Semantic Search](https://github.com/second-brain-tools/second-brain-joplin/milestone/3) | Embedding index, semantic search | Done |
+| [v0.4 — Remote Access](https://github.com/second-brain-tools/second-brain-joplin/milestone/6) | Streamable HTTP, GitHub sign-in, Claude custom connector | Done |
+| [v0.5 — Write Workflow](https://github.com/second-brain-tools/second-brain-joplin/milestone/4) | Notebook filter; note creation you allow and approve | Done |
+| [v1.0 — Publish](https://github.com/second-brain-tools/second-brain-joplin/milestone/5) | PyPI, full docs, templates | Done |
 
 ---
 

@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **The repository moved to
+  [second-brain-tools/second-brain-joplin](https://github.com/second-brain-tools/second-brain-joplin)**,
+  an organization for this and its sibling tools. GitHub redirects the old
+  address, so clones, links and installs from git keep working;
+  `git remote set-url origin https://github.com/second-brain-tools/second-brain-joplin`
+  points a clone at the new one. The package name on PyPI and the command are
+  unchanged.
+
 ### Fixed
 
 - **The guides said a new chat is enough for Claude to see a changed tool. It
@@ -446,12 +456,12 @@ Initial project skeleton — the MCP server starts and all tools are stubbed.
 - Documentation: install, notebook structure (PARA), project management,
   releasing runbook, security policy, and an inspiration/reference note.
 
-[Unreleased]: https://github.com/jomkz/second-brain-joplin/compare/v1.1.0...HEAD
-[1.1.0]: https://github.com/jomkz/second-brain-joplin/compare/v1.0.1...v1.1.0
-[1.0.1]: https://github.com/jomkz/second-brain-joplin/compare/v1.0.0...v1.0.1
-[1.0.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.5.0...v1.0.0
-[0.5.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.4.0...v0.5.0
-[0.4.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/jomkz/second-brain-joplin/releases/tag/v0.1.0
+[Unreleased]: https://github.com/second-brain-tools/second-brain-joplin/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/second-brain-tools/second-brain-joplin/compare/v1.0.1...v1.1.0
+[1.0.1]: https://github.com/second-brain-tools/second-brain-joplin/compare/v1.0.0...v1.0.1
+[1.0.0]: https://github.com/second-brain-tools/second-brain-joplin/compare/v0.5.0...v1.0.0
+[0.5.0]: https://github.com/second-brain-tools/second-brain-joplin/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/second-brain-tools/second-brain-joplin/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/second-brain-tools/second-brain-joplin/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/second-brain-tools/second-brain-joplin/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/second-brain-tools/second-brain-joplin/releases/tag/v0.1.0
