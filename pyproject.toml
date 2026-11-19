@@ -7,14 +7,14 @@ name = "second-brain-joplin"
 dynamic = ["version"]
 description = "MCP server that connects Claude Code (and other MCP clients) to your Joplin knowledge base"
 readme = "README.md"
-license = { text = "MIT" }
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 keywords = ["mcp", "joplin", "second-brain", "claude", "ai", "knowledge-base"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "Intended Audience :: End Users/Desktop",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
@@ -57,11 +57,11 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/jomkz/second-brain-joplin"
-Repository = "https://github.com/jomkz/second-brain-joplin"
-Documentation = "https://github.com/jomkz/second-brain-joplin/blob/main/docs/install.md"
-Changelog = "https://github.com/jomkz/second-brain-joplin/blob/main/CHANGELOG.md"
-Issues = "https://github.com/jomkz/second-brain-joplin/issues"
+Homepage = "https://github.com/second-brain-tools/second-brain-joplin"
+Repository = "https://github.com/second-brain-tools/second-brain-joplin"
+Documentation = "https://github.com/second-brain-tools/second-brain-joplin/blob/main/docs/install.md"
+Changelog = "https://github.com/second-brain-tools/second-brain-joplin/blob/main/CHANGELOG.md"
+Issues = "https://github.com/second-brain-tools/second-brain-joplin/issues"
 
 [project.scripts]
 second-brain-joplin = "second_brain_joplin.cli:main"

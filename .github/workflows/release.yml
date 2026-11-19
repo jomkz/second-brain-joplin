@@ -4,8 +4,8 @@ name: Release (PyPI)
 # commit, then publishes the *tested* artifact to PyPI via an OIDC trusted
 # publisher (no stored token), then creates the GitHub Release for the tag. The
 # trusted publisher is registered on https://pypi.org for the
-# `jomkz/second-brain-joplin` repo, environment `pypi`. A red check blocks the
-# publish. See docs/releasing.md.
+# `second-brain-tools/second-brain-joplin` repo, environment `pypi`. A red check
+# blocks the publish. See docs/releasing.md.
 
 on:
   push:

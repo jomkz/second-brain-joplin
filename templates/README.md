@@ -67,3 +67,10 @@ stay with you in Joplin.
 These are starting points. Change the headings to fit how you work, and keep
 your versions in Joplin: once imported, the notes are yours and nothing
 overwrites them.
+
+## License
+
+The templates are dedicated to the public domain under
+[CC0 1.0](LICENSE), unlike the server, which is under the AGPL. Copy them,
+change them and share them with no conditions and no credit; the notes you
+make from them are yours alone.

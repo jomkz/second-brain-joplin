@@ -6,6 +6,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **The repository moved to
+  [second-brain-tools/second-brain-joplin](https://github.com/second-brain-tools/second-brain-joplin)**,
+  an organization for this and its sibling tools. GitHub redirects the old
+  address, so clones, links and installs from git keep working;
+  `git remote set-url origin https://github.com/second-brain-tools/second-brain-joplin`
+  points a clone at the new one. The package name on PyPI and the command are
+  unchanged.
+- **The license is now the GNU Affero General Public License, version 3 or
+  later** (it was MIT), from the next release on. Releases up to 1.1.0 stay
+  under MIT. Running the server, changed or not, for yourself asks nothing new
+  of you. If you pass copies on, or change it and let other people use your
+  version over a network, you must offer them the source under the same
+  license. The note templates in `templates/` are not under it: they are
+  dedicated to the public domain (CC0 1.0), so the notes you make from them
+  carry no conditions. The package's metadata now names the license as an SPDX
+  expression (`AGPL-3.0-or-later`).
+
 ### Fixed
 
 - **The guides said a new chat is enough for Claude to see a changed tool. It
@@ -446,12 +465,12 @@ Initial project skeleton — the MCP server starts and all tools are stubbed.
 - Documentation: install, notebook structure (PARA), project management,
   releasing runbook, security policy, and an inspiration/reference note.
 
-[Unreleased]: https://github.com/jomkz/second-brain-joplin/compare/v1.1.0...HEAD
-[1.1.0]: https://github.com/jomkz/second-brain-joplin/compare/v1.0.1...v1.1.0
-[1.0.1]: https://github.com/jomkz/second-brain-joplin/compare/v1.0.0...v1.0.1
-[1.0.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.5.0...v1.0.0
-[0.5.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.4.0...v0.5.0
-[0.4.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/jomkz/second-brain-joplin/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/jomkz/second-brain-joplin/releases/tag/v0.1.0
+[Unreleased]: https://github.com/second-brain-tools/second-brain-joplin/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/second-brain-tools/second-brain-joplin/compare/v1.0.1...v1.1.0
+[1.0.1]: https://github.com/second-brain-tools/second-brain-joplin/compare/v1.0.0...v1.0.1
+[1.0.0]: https://github.com/second-brain-tools/second-brain-joplin/compare/v0.5.0...v1.0.0
+[0.5.0]: https://github.com/second-brain-tools/second-brain-joplin/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/second-brain-tools/second-brain-joplin/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/second-brain-tools/second-brain-joplin/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/second-brain-tools/second-brain-joplin/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/second-brain-tools/second-brain-joplin/releases/tag/v0.1.0
